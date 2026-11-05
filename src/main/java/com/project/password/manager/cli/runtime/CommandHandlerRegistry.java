@@ -11,18 +11,17 @@ import com.project.password.manager.cli.handlers.CommandHandler;
 
 public class CommandHandlerRegistry {
 
-	@NotNull
-	private final Map<Class<?>, Class<? extends CommandHandler<?>>> handlerTypeByCommand = new LinkedHashMap<>();
+    @NotNull
+    private final Map<Class<?>, Class<? extends CommandHandler<?>>> handlerTypeByCommand = new LinkedHashMap<>();
 
-	@NotNull
-	public <C extends RuntimeBoundCommand<H>, H extends CommandHandler<?>> CommandHandlerRegistry register(
-			@NotNull Class<C> commandType, @NotNull Class<H> handlerType) {
-		handlerTypeByCommand.put(commandType, handlerType);
-		return this;
-	}
+    @NotNull
+    public <C extends RuntimeBoundCommand<?>, H extends CommandHandler<?>> CommandHandlerRegistry register(@NotNull Class<C> commandType, @NotNull Class<H> handlerType) {
+        handlerTypeByCommand.put(commandType, handlerType);
+        return this;
+    }
 
-	@Nullable
-	public Class<? extends CommandHandler<?>> findHandlerType(@NotNull Class<?> commandType) {
-		return handlerTypeByCommand.get(commandType);
-	}
+    @Nullable
+    public Class<? extends CommandHandler<?>> findHandlerType(@NotNull Class<?> commandType) {
+        return handlerTypeByCommand.get(commandType);
+    }
 }
