@@ -18,6 +18,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import com.project.password.manager.util.Logger;
+import com.project.password.manager.workspace.Workspace;
 
 public class PropertiesReader {
 

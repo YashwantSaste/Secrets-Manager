@@ -6,7 +6,6 @@ import org.hibernate.SessionFactory;
 import org.jetbrains.annotations.NotNull;
 
 import com.project.password.manager.configuration.IDatabaseConfiguration;
-import com.project.password.manager.configuration.application.Workspace;
 import com.project.password.manager.database.file.storage.FileEntryRepository;
 import com.project.password.manager.database.file.storage.TokenRepository;
 import com.project.password.manager.database.file.storage.UserRepository;
@@ -23,6 +22,7 @@ import com.project.password.manager.model.database.sql.JpaToken;
 import com.project.password.manager.model.database.sql.JpaUser;
 import com.project.password.manager.model.database.sql.JpaVault;
 import com.project.password.manager.util.Logger;
+import com.project.password.manager.workspace.Workspace;
 
 public class DataRepositoryFactory {
 

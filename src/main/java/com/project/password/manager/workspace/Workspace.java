@@ -1,4 +1,4 @@
-package com.project.password.manager.configuration.application;
+package com.project.password.manager.workspace;
 
 import java.io.File;
 import java.io.IOException;
@@ -6,6 +6,8 @@ import java.util.Properties;
 
 import org.jetbrains.annotations.NotNull;
 
+import com.project.password.manager.configuration.application.ApplicationProperties;
+import com.project.password.manager.configuration.application.PropertiesReader;
 import com.project.password.manager.util.Logger;
 
 public class Workspace {

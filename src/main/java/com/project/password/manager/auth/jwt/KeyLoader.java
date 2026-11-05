@@ -15,7 +15,7 @@ import java.util.Base64;
 
 import org.jetbrains.annotations.NotNull;
 
-import com.project.password.manager.configuration.application.Workspace;
+import com.project.password.manager.workspace.Workspace;
 
 public class KeyLoader {
 
