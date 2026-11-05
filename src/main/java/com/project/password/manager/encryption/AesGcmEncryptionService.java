@@ -11,30 +11,33 @@ import com.project.password.manager.util.KeyGenerator;
 
 public class AesGcmEncryptionService implements IEncryptionService {
 
-	private final UserService userService;
+    private final UserService userService;
 
-	public AesGcmEncryptionService(UserService userService) {
-		this.userService = userService;
-	}
+    public AesGcmEncryptionService(@NotNull UserService userService) {
+        this.userService = userService;
+    }
 
-	@Override
-	@NotNull
-	public String encrypt(@NotNull String plainText, @NotNull String userId) throws Exception {
-		IUser user = userService.getUser(userId);
-		SecretKey key = deriveKeyForUser(user);
-		return AesGcmUtils.encrypt(key, plainText);
-	}
+    @Override
+    @NotNull
+    public String encrypt(@NotNull String plainText, @NotNull String userId) throws Exception {
+        SecretKey key = deriveKeyForUser(getUser(userId));
+        return AesGcmUtils.encrypt(key, plainText);
+    }
 
-	@Override
-	@NotNull
-	public String decrypt(@NotNull String encryptedText, @NotNull String userId) throws Exception {
-		IUser user = userService.getUser(userId);
-		SecretKey key = deriveKeyForUser(user);
-		return AesGcmUtils.decrypt(key, encryptedText);
-	}
+    @Override
+    @NotNull
+    public String decrypt(@NotNull String encryptedText, @NotNull String userId) throws Exception {
+        SecretKey key = deriveKeyForUser(getUser(userId));
+        return AesGcmUtils.decrypt(key, encryptedText);
+    }
 
-	@NotNull
-	private SecretKey deriveKeyForUser(@NotNull IUser user) {
-		return KeyGenerator.getSecretKeyFromUserKeySalt(user.getKeySalt());
-	}
+    @NotNull
+    private SecretKey deriveKeyForUser(@NotNull IUser user) {
+        return KeyGenerator.getSecretKeyFromUserKeySalt(user.getKeySalt());
+    }
+
+    @NotNull
+    private IUser getUser(@NotNull String userId) {
+        return userService.requireUser(userId);
+    }
 }

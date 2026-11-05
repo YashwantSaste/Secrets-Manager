@@ -1,6 +1,6 @@
-# Password Manager CLI
+# Secrets Manager CLI
 
-This project is a Java-based interactive password manager CLI. It supports user signup and login, vault management, encrypted entry storage, JWT-backed CLI sessions, and a command architecture built with Picocli, JLine, and Guice.
+This project is a Java-based interactive secrets manager CLI. It supports user signup and login, vault management, encrypted entry storage, JWT-backed CLI sessions, and a command architecture built with Picocli, JLine, and Guice.
 
 The current implementation is centered around an interactive shell started from `Application.main(...)`, with command handlers resolved at runtime through Guice.
 
@@ -25,7 +25,7 @@ The CLI currently supports:
 - JLine for the interactive shell
 - Guice for dependency injection and method interception
 - Auth0 Java JWT for token creation and validation
-- Argon2 for password hashing
+- Argon2 for secrets hashing
 - AES encryption for vault and entry payloads
 - Jackson for payload serialization
 - Caffeine for short-lived in-memory caches
