@@ -35,11 +35,14 @@ public class DataRepositoryFactory {
     private final IDatabaseConfiguration databaseConfiguration;
     @NotNull
     private final ITransactionLogger transactionLogger;
+    @NotNull
+    private final IWorkspaceLocator locator;
 
     public DataRepositoryFactory(@NotNull IConfiguration configuration) {
         databaseConfiguration = configuration.databaseConfiguration();
         transactionLogger = new WorkspaceTransactionLogger(configuration.appConfiguration(),
                 Workspace.getInstance().getRoot());
+        locator = GuicePlatform.getInstance(IWorkspaceLocator.class);
     }
 
     @NotNull
@@ -56,7 +59,6 @@ public class DataRepositoryFactory {
         }
         log.warn("Database is not enabled hence using local file system as storage");
         log.debug("ID Class type is: " + idClass.getClass().getName());
-        IWorkspaceLocator locator = GuicePlatform.getInstance(IWorkspaceLocator.class);
         if (entityClass.equals(IUser.class)) {
             DataRepository<T, Id> repo = (DataRepository<T, Id>) new UserRepository(locator, transactionLogger);
             return repo;
@@ -89,7 +91,7 @@ public class DataRepositoryFactory {
             }
         }
         log.warn("Database is not enabled hence using local file system as storage");
-        return new FileEntryRepository(Workspace.getInstance().getRoot(), transactionLogger);
+        return new FileEntryRepository(locator, transactionLogger);
     }
 
     @NotNull

@@ -7,7 +7,6 @@ import java.util.List;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import com.google.inject.Inject;
 import com.project.password.manager.database.DataRepository;
 import com.project.password.manager.logging.ITransactionLogger;
 import com.project.password.manager.model.database.file.storage.IFileStorableEntity;
@@ -22,7 +21,7 @@ public abstract class FileStorageRepository<T extends IFileStorableEntity, Id> i
     protected final IWorkspaceLocator workspaceLocator;
     @NotNull
     protected final ITransactionLogger transactionLogger;
-    @NotNull
+    @Nullable
     protected FileManager<T> fileManager;
 
     protected FileStorageRepository(@NotNull IWorkspaceLocator workspaceLocator, @NotNull ITransactionLogger transactionLogger) {
@@ -32,23 +31,15 @@ public abstract class FileStorageRepository<T extends IFileStorableEntity, Id> i
 
     @Override
     public void save(@NotNull T entity) {
-        if (entity.getId() == null) {
-            throw new IllegalStateException("Entity ID cannot be null before saving.");
-        }
+        isValidId(entity);
         MetadataListener.beforeCreate(entity);
         File entityDirectory = resolveEntityDirectoryInFileSystem(entity.getId());
         entityDirectory.mkdirs();
         File entityFile = new File(entityDirectory, entity.getFileName());
         fileManager = new FileManager<>(entityFile, getEntityClass());
-        if (!fileManager.doFileExist()) {
-            fileManager.writeToFile(entity);
-            logRepositoryOperation("save", entity.getClass().getSimpleName(), entity.getId(), "SUCCESS",
-                    entityFile.getAbsolutePath());
-        } else {
-            logRepositoryOperation("save", entity.getClass().getSimpleName(), entity.getId(), "SKIPPED",
-                    "Entity file already exists at " + entityFile.getAbsolutePath());
-            log.warn("Given file already exists in the workspace: " + entityFile.getAbsolutePath());
-        }
+        fileManager.writeToFileIfExist(entityFile);
+        logRepositoryOperation("save", entity.getClass().getSimpleName(), entity.getId(), "SAVE", entityFile.getAbsolutePath());
+        log.warn("Given file already exists in the workspace: " + entityFile.getAbsolutePath());
     }
 
     @Override
@@ -61,10 +52,9 @@ public abstract class FileStorageRepository<T extends IFileStorableEntity, Id> i
             return null;
         }
         File entityFile = new File(entityDir, getEntityFileName());
-        fileManager = new FileManager<T>(entityFile, getEntityClass());
-        T entity = fileManager.readFromFile();
-        logRepositoryOperation("findById", getEntityClass().getSimpleName(), id.toString(),
-                entity == null ? "MISS" : "SUCCESS", entityFile.getAbsolutePath());
+        @Nullable
+        T entity = new FileManager<T>(entityFile, getEntityClass()).readFromFile();
+        logRepositoryOperation("findById", getEntityClass().getSimpleName(), id.toString(), entity == null ? "MISS" : "SUCCESS", entityFile.getAbsolutePath());
         return entity;
     }
 
@@ -91,8 +81,7 @@ public abstract class FileStorageRepository<T extends IFileStorableEntity, Id> i
                 entities.add(entity);
             }
         }
-        logRepositoryOperation("findAll", getEntityClass().getSimpleName(), null, "SUCCESS",
-                "count=" + entities.size());
+        logRepositoryOperation("findAll", getEntityClass().getSimpleName(), null, "SUCCESS", "count=" + entities.size());
         return entities;
     }
 
@@ -111,65 +100,18 @@ public abstract class FileStorageRepository<T extends IFileStorableEntity, Id> i
 
     @Override
     public void update(@NotNull Id id, @NotNull T entity) {
-        if (entity.getId() == null) {
-            throw new IllegalStateException("Entity ID cannot be null before updating.");
-        }
+        isValidId(entity);
         MetadataListener.beforeUpdate(entity);
         File entityDirectory = resolveEntityDirectoryInFileSystem(id.toString());
         entityDirectory.mkdirs();
         File entityFile = new File(entityDirectory, entity.getFileName());
         fileManager = new FileManager<>(entityFile, getEntityClass());
         fileManager.writeToFile(entity);
-        logRepositoryOperation("update", entity.getClass().getSimpleName(), entity.getId(), "SUCCESS",
-                entityFile.getAbsolutePath());
+        logRepositoryOperation("update", entity.getClass().getSimpleName(), entity.getId(), "SUCCESS", entityFile.getAbsolutePath());
     }
 
     protected void logRepositoryOperation(@NotNull String operation, @NotNull String entityType, @Nullable String entityId, @NotNull String status, @Nullable String details) {
-        transactionLogger.logRepositoryOperation(false, getClass().getSimpleName(), operation, entityType, entityId,
-                status, details);
-    }
-
-    @Override
-    public void save(@NotNull T entity) {
-        isValidId(entity);
-        MetadataListener.beforeCreate(entity);
-        File entityDirectory = resolveEntityDirectoryInFileSystem(entity.getId());
-        entityDirectory.mkdirs();
-        File entityFile = new File(entityDirectory, entity.getFileName());
-        fileManager = new FileManager<>(entityFile, getEntityClass());
-        fileManager.writeToFileIfExist(entityFile);
-    }
-
-    @Override
-    @Nullable
-    public T findById(@NotNull Id id) {
-        File entityDir = resolveEntityDirectoryInFileSystem(id.toString());
-        if (!entityDir.exists()) {
-            log.debug("File related to related ID does not exist in the workspace");
-            return null;
-        }
-        File entityFile = new File(entityDir, getEntityFileName());
-        fileManager = new FileManager<T>(entityFile, getEntityClass());
-        return fileManager.readFromFile();
-    }
-
-    @Override
-    public void delete(@NotNull Id id) {
-        File entityDirectory = resolveEntityDirectoryInFileSystem(id.toString());
-        File entityFile = new File(entityDirectory, getEntityFileName());
-        fileManager = new FileManager<>(entityFile, getEntityClass());
-        fileManager.delete();
-    }>>>>>>>improvements
-
-    @Override
-    public void update(@NotNull Id id, @NotNull T entity) {
-        isValidId(entity);
-        MetadataListener.beforeUpdate(entity);
-        File entityDirectory = resolveEntityDirectoryInFileSystem(id.toString());
-        entityDirectory.mkdirs();
-        File entityFile = new File(entityDirectory, entity.getFileName());
-        fileManager = new FileManager<>(entityFile, getEntityClass());
-        fileManager.writeToFile(entity);
+        transactionLogger.logRepositoryOperation(false, getClass().getSimpleName(), operation, entityType, entityId, status, details);
     }
 
     protected void isValidId(@NotNull T entity) {
