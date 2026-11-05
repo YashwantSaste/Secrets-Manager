@@ -105,7 +105,9 @@ import com.project.password.manager.service.UserService;
 import com.project.password.manager.service.VaultService;
 import com.project.password.manager.util.ModelObjectMapperFactory;
 import com.project.password.manager.workspace.IWorkspace;
+import com.project.password.manager.workspace.IWorkspaceLocator;
 import com.project.password.manager.workspace.Workspace;
+import com.project.password.manager.workspace.WorkspaceLocator;
 
 public class GuiceModule extends AbstractModule {
 
@@ -115,6 +117,7 @@ public class GuiceModule extends AbstractModule {
         TokenAuthorizationInterceptor authorizationInterceptor = new TokenAuthorizationInterceptor();
         bind(IConfiguration.class).toInstance(configuration);
         bind(IWorkspace.class).to(Workspace.class).in(Singleton.class);
+        bind(IWorkspaceLocator.class).to(WorkspaceLocator.class).in(Singleton.class);
         bind(CliSession.class).in(Singleton.class);
         bind(CliOutput.class).to(ConsoleCliOutput.class).in(Singleton.class);
         requestInjection(authorizationInterceptor);

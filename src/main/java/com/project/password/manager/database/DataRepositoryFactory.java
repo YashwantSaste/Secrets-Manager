@@ -1,7 +1,5 @@
 package com.project.password.manager.database;
 
-import java.io.File;
-
 import org.hibernate.SessionFactory;
 import org.jetbrains.annotations.NotNull;
 
@@ -14,6 +12,7 @@ import com.project.password.manager.database.postgres.hibernate.HibernateBootStr
 import com.project.password.manager.database.postgres.hibernate.HibernateEntityProvider;
 import com.project.password.manager.database.postgres.hibernate.HibernateEntryRepository;
 import com.project.password.manager.database.postgres.hibernate.HibernateRepository;
+import com.project.password.manager.guice.GuicePlatform;
 import com.project.password.manager.model.IEntity;
 import com.project.password.manager.model.IToken;
 import com.project.password.manager.model.IUser;
@@ -22,6 +21,7 @@ import com.project.password.manager.model.database.sql.JpaToken;
 import com.project.password.manager.model.database.sql.JpaUser;
 import com.project.password.manager.model.database.sql.JpaVault;
 import com.project.password.manager.util.Logger;
+import com.project.password.manager.workspace.IWorkspaceLocator;
 import com.project.password.manager.workspace.Workspace;
 
 public class DataRepositoryFactory {
@@ -42,20 +42,18 @@ public class DataRepositoryFactory {
             return new HibernateRepository<>(factory, resolveSqlEntityClass(entityClass));
         }
         log.warn("Database is not enabled hence using local file system as storage");
-        File workspace = Workspace.getInstance().getRoot();
+        log.debug("ID Class type is: " + idClass.getClass().getName());
+        IWorkspaceLocator locator = GuicePlatform.getInstance(IWorkspaceLocator.class);
         if (entityClass.equals(IUser.class)) {
-            @SuppressWarnings("unchecked")
-            DataRepository<T, Id> repo = (DataRepository<T, Id>) new UserRepository();
+            DataRepository<T, Id> repo = (DataRepository<T, Id>) new UserRepository(locator);
             return repo;
         }
         if (entityClass.equals(IToken.class)) {
-            @SuppressWarnings("unchecked")
-            DataRepository<T, Id> repo = (DataRepository<T, Id>) new TokenRepository();
+            DataRepository<T, Id> repo = (DataRepository<T, Id>) new TokenRepository(locator);
             return repo;
         }
         if (entityClass.equals(IVault.class)) {
-            @SuppressWarnings("unchecked")
-            DataRepository<T, Id> repo = (DataRepository<T, Id>) new VaultRepository();
+            DataRepository<T, Id> repo = (DataRepository<T, Id>) new VaultRepository(locator);
             return repo;
         }
         throw new IllegalArgumentException("No repository available for entity: " + entityClass.getName());
@@ -77,7 +75,6 @@ public class DataRepositoryFactory {
     }
 
     @NotNull
-    @SuppressWarnings("unchecked")
     private <T extends IEntity> Class<T> resolveSqlEntityClass(@NotNull Class<T> entityClass) {
         if (entityClass.equals(IUser.class)) {
             return (Class<T>) JpaUser.class;
