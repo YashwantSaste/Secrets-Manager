@@ -4,20 +4,21 @@ import java.io.File;
 
 import org.jetbrains.annotations.NotNull;
 
+import com.google.inject.Inject;
 import com.project.password.manager.model.database.file.storage.User;
+import com.project.password.manager.workspace.IWorkspaceLocator;
 
 public class UserRepository extends FileStorageRepository<User, String> {
 
-    private static final String USERS_WORKSPACE_FOLDER = "users";
-
-    public UserRepository(@NotNull File workspace) {
-        super(new File(workspace, USERS_WORKSPACE_FOLDER));
+    @Inject
+    public UserRepository(@NotNull IWorkspaceLocator workspaceLocator) {
+        super(workspaceLocator);
     }
 
     @Override
     @NotNull
     protected File resolveEntityDirectoryInFileSystem(@NotNull String id) {
-        return new File(workspace, id);
+        return workspaceLocator.getUserWorkspaceLocation();
     }
 
     @Override

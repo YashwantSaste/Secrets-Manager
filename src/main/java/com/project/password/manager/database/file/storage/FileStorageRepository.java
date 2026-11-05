@@ -7,21 +7,25 @@ import java.util.List;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import com.google.inject.Inject;
 import com.project.password.manager.database.DataRepository;
 import com.project.password.manager.model.database.file.storage.IFileStorableEntity;
 import com.project.password.manager.util.Logger;
 import com.project.password.manager.util.MetadataListener;
+import com.project.password.manager.workspace.IWorkspaceLocator;
 
 public abstract class FileStorageRepository<T extends IFileStorableEntity, Id> implements DataRepository<T, Id> {
 
-    private static final Logger log = Logger.getLogger("FileRepository class");
-    @NotNull
-    protected final File workspace;
+    private static final Logger log = Logger.getLogger(FileStorageRepository.class);
     @Nullable
     protected FileManager<T> fileManager;
 
-    protected FileStorageRepository(@NotNull File workspace) {
-        this.workspace = workspace;
+    @NotNull
+    protected final IWorkspaceLocator workspaceLocator;
+
+    @Inject
+    protected FileStorageRepository(@NotNull IWorkspaceLocator workspaceLocator) {
+        this.workspaceLocator = workspaceLocator;
     }
 
     @Override
@@ -52,6 +56,7 @@ public abstract class FileStorageRepository<T extends IFileStorableEntity, Id> i
     @NotNull
     public List<T> findAll() {
         List<T> entities = new ArrayList<>();
+        File workspace = workspaceLocator.getWorkspaceRoot();
         if (!workspace.exists()) {
             return entities;
         }
@@ -97,6 +102,11 @@ public abstract class FileStorageRepository<T extends IFileStorableEntity, Id> i
         if (entity.getId().isEmpty() && entity.getFileName().isEmpty()) {
             throw new IllegalStateException("Invalid entity format: Both ID and file name are missing.");
         }
+    }
+
+    @NotNull
+    protected IWorkspaceLocator getLocator() {
+        return workspaceLocator;
     }
 
     @NotNull
