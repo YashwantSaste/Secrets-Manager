@@ -7,13 +7,11 @@ import java.util.Set;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
 import com.google.inject.Inject;
 import com.project.password.manager.database.DataRepository;
 import com.project.password.manager.event.EventType;
 import com.project.password.manager.event.listener.IPersistenceEventListener;
-import com.project.password.manager.event.listener.PersistenceListener;
-import com.project.password.manager.guice.GuicePlatform;
+import com.project.password.manager.event.listener.PersistenceListenerFactory;
 import com.project.password.manager.model.IUser;
 import com.project.password.manager.model.UserRole;
 import com.project.password.manager.util.Logger;
@@ -23,21 +21,16 @@ public class UserService {
     private static final Logger log = Logger.getLogger(UserService.class);
     @NotNull
     private final DataRepository<IUser, String> userRepository;
-    @Nullable
     private final TokenService tokenService;
-    @Nullable
-    private IPersistenceEventListener<IUser> listener;
+    @NotNull
+    private final PersistenceListenerFactory listenerFactory;
 
     @Inject
-    public UserService(@NotNull DataRepository<IUser, String> userRepository) {
-        this(userRepository, GuicePlatform.getInstance(TokenService.class), null);
-    }
-
-    @Inject
-    public UserService(@NotNull DataRepository<IUser, String> userRepository, @Nullable TokenService tokenService, @Nullable IPersistenceEventListener<IUser> listener) {
+    public UserService(@NotNull DataRepository<IUser, String> userRepository,
+            @NotNull TokenService tokenService, @NotNull PersistenceListenerFactory listenerFactory) {
         this.userRepository = userRepository;
         this.tokenService = tokenService;
-        this.listener = listener;
+        this.listenerFactory = listenerFactory;
     }
 
     @Nullable
@@ -52,7 +45,7 @@ public class UserService {
 
     public void saveUser(@NotNull IUser user) {
         userRepository.save(user);
-        listener = new PersistenceListener<>(user, EventType.CREATE);
+        IPersistenceEventListener<IUser> listener = listenerFactory.create(user, EventType.CREATE);
         listener.onEvent(listener.createEvent());
     }
 
@@ -91,13 +84,11 @@ public class UserService {
     }
 
     private void persistRoles(@NotNull IUser user, @NotNull List<UserRole> roles) {
+        IPersistenceEventListener<IUser> listener = listenerFactory.create(user, EventType.UPDATE);
         user.setRoles(normalizeRoles(roles));
         userRepository.update(user.getId(), user);
-        listener = new PersistenceListener<>(user, EventType.UPDATE);
         listener.onUpdate(user);
-        if (tokenService != null) {
-            tokenService.revokeToken(user);
-        }
+        tokenService.revokeToken(user);
     }
 
     @NotNull

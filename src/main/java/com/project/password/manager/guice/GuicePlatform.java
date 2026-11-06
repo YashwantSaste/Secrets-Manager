@@ -6,9 +6,7 @@ import org.jetbrains.annotations.NotNull;
 
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.google.inject.Module;
 import com.project.password.manager.configuration.IAppConfiguration.ApplicationEnvironment;
-import com.project.password.manager.configuration.IConfiguration;
 import com.project.password.manager.configuration.application.Configuration;
 
 public class GuicePlatform {
@@ -17,32 +15,36 @@ public class GuicePlatform {
     }
 
     private static final class HOLDER {
-        static IConfiguration configuration = Configuration.getInstance();
-        static ApplicationEnvironment environment = configuration.appConfiguration().environment();
-        static Module module = switch (environment) {
-            case PROD -> new GuiceModule();
-            default -> new GuiceModule();
-        };
-        private static final Injector INJECTOR = Guice.createInjector(module);
+	private static final Injector INJECTOR = Guice
+		.createInjector(moduleFor(Configuration.getInstance().appConfiguration().environment()));
+    }
+
+    @NotNull
+    private static GuiceModule moduleFor(@NotNull ApplicationEnvironment environment) {
+	return switch (environment) {
+	case DEV -> new DevGuiceModule();
+	case TEST -> new TestGuiceModule();
+	case PROD -> new ProdGuiceModule();
+	};
     }
 
     @NotNull
     private static Injector injector() {
-        return HOLDER.INJECTOR;
+	return HOLDER.INJECTOR;
     }
 
     @NotNull
     public static Injector getInjector() {
-        return injector();
+	return injector();
     }
 
     @NotNull
     public static <T> T getInstance(@NotNull Class<T> type) {
-        return Objects.requireNonNull(injector().getInstance(type));
+	return Objects.requireNonNull(injector().getInstance(type));
     }
 
     public static void injectMembers(@NotNull Object object) {
-        injector().injectMembers(object);
+	injector().injectMembers(object);
     }
 
 }

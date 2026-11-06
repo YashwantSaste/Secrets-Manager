@@ -13,7 +13,6 @@ import com.project.password.manager.database.postgres.hibernate.HibernateBootStr
 import com.project.password.manager.database.postgres.hibernate.HibernateEntityProvider;
 import com.project.password.manager.database.postgres.hibernate.HibernateEntryRepository;
 import com.project.password.manager.database.postgres.hibernate.HibernateRepository;
-import com.project.password.manager.guice.GuicePlatform;
 import com.project.password.manager.logging.ITransactionLogger;
 import com.project.password.manager.logging.WorkspaceTransactionLogger;
 import com.project.password.manager.model.IEntity;
@@ -38,11 +37,11 @@ public class DataRepositoryFactory {
     @NotNull
     private final IWorkspaceLocator locator;
 
-    public DataRepositoryFactory(@NotNull IConfiguration configuration) {
+    public DataRepositoryFactory(@NotNull IConfiguration configuration, @NotNull IWorkspaceLocator locator) {
         databaseConfiguration = configuration.databaseConfiguration();
         transactionLogger = new WorkspaceTransactionLogger(configuration.appConfiguration(),
                 Workspace.getInstance().getRoot());
-        locator = GuicePlatform.getInstance(IWorkspaceLocator.class);
+        this.locator = locator;
     }
 
     @NotNull

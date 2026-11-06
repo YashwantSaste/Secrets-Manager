@@ -11,6 +11,7 @@ import org.jetbrains.annotations.Nullable;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.password.manager.model.IEntity;
 import com.project.password.manager.util.Logger;
@@ -27,62 +28,65 @@ public class FileManager<T extends IEntity> {
     private ObjectMapper mapper;
 
     public FileManager(@NotNull File file, @NotNull Class<T> clazz) {
-        this.file = file;
-        this.clazz = clazz;
-        mapper = ModelObjectMapperFactory.create();
+	this.file = file;
+	this.clazz = clazz;
+	mapper = ModelObjectMapperFactory.create();
     }
 
     public boolean doFileExist() {
-        return file.exists();
+	return file.exists();
     }
 
     /* Returns the object model stored in the file system */
     @Nullable
     public T readFromFile() {
-        return readFromInputStreamSafely();
+	return readFromInputStreamSafely();
     }
 
     public void writeToFile(@NotNull Object objectToWrite) {
-        createOutputStreamSafely(objectToWrite);
-    }
-
-    public void writeToFileIfExist(@NotNull Object objectToWrite) {
-        if (doFileExist()) {
-            createOutputStreamSafely(objectToWrite);
-        }
-        log.warn("Given file already exists in the workspace: " + file.getAbsolutePath());
+	createOutputStreamSafely(objectToWrite);
     }
 
     public void delete() {
-        if (file.exists()) {
-            file.delete();
-        }
+	if (file.exists()) {
+	    file.delete();
+	}
     }
 
     @Nullable
     private T readFromInputStreamSafely() {
-        try {
-            T retrivedEntity = mapper.readValue(file, clazz);
-            return retrivedEntity;
-        } catch (JsonParseException | JsonMappingException ex) {
-            throw new RuntimeException("Failed to deserialise JSON into object entity: " + ex);
-        } catch (FileNotFoundException ex) {
-            log.error("The given file does not exists in the workspace: " + file);
-            return null;
-        } catch (IOException ex) {
-            throw new RuntimeException("Unexpected error during retriving data to the file system " + ex);
-        }
+	try {
+	    T retrivedEntity = mapper.readValue(file, clazz);
+	    return retrivedEntity;
+	} catch (JsonParseException | JsonMappingException ex) {
+            try {
+                JsonNode invalidRecord = mapper.readTree(file);
+                if (invalidRecord != null && invalidRecord.isTextual()
+                        && file.getAbsolutePath().equals(invalidRecord.asText())) {
+                    log.warn("Ignoring legacy file-path record: " + file.getAbsolutePath());
+                    return null;
+                }
+            } catch (IOException ignored) {
+                // Preserve the original deserialization failure below.
+            }
+	    throw new RuntimeException("Failed to deserialise JSON into object entity: " + ex);
+	} catch (FileNotFoundException ex) {
+	    log.error("The given file does not exists in the workspace: " + file);
+	    return null;
+	} catch (IOException ex) {
+	    throw new RuntimeException("Unexpected error during retriving data to the file system " + ex);
+	}
     }
 
     private void createOutputStreamSafely(@NotNull Object data) {
-        try {
-            String json = mapper.writeValueAsString(data);
-            log.debug("Writing the data to the file: " + file.getAbsoluteFile());
-            OutputStream outputStream = new FileOutputStream(file);
-            outputStream.write(json.getBytes());
-            outputStream.close();
-        } catch (IOException ex) {
-            throw new RuntimeException("Error writing the file to the database: " + ex);
-        }
+	try {
+	    String json = mapper.writeValueAsString(data);
+	    log.debug("Writing the data to the file: " + file.getAbsoluteFile());
+	    OutputStream outputStream = new FileOutputStream(file);
+	    outputStream.write(json.getBytes());
+	    outputStream.close();
+	} catch (IOException ex) {
+	    throw new RuntimeException("Error writing the file to the database: " + ex);
+	}
     }
 }

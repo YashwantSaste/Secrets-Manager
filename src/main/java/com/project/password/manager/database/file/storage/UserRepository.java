@@ -13,24 +13,25 @@ public class UserRepository extends FileStorageRepository<User, String> {
 
     @Inject
     public UserRepository(@NotNull IWorkspaceLocator workspaceLocator, @NotNull ITransactionLogger transactionLogger) {
-        super(workspaceLocator, transactionLogger);
+	super(workspaceLocator, transactionLogger);
     }
 
     @Override
     @NotNull
     protected File resolveEntityDirectoryInFileSystem(@NotNull String id) {
-        return workspaceLocator.getUserWorkspaceLocation();
+	return new File(workspaceLocator.getUserWorkspaceLocation(), id);
     }
 
     @Override
     @NotNull
     protected Class<User> getEntityClass() {
-        return User.class;
+	return User.class;
     }
 
     @Override
     @NotNull
     protected String getEntityFileName() {
-        return "user.json";
+	return "user.json";
     }
+
 }

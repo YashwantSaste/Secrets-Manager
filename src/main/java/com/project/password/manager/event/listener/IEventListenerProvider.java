@@ -9,13 +9,10 @@ import com.project.password.manager.model.IEntity;
 public interface IEventListenerProvider {
 
     @NotNull
-    <T extends IEventListener> T getListener(@NotNull IEvent event);
+    <T extends IEventListener> T getListener(@NotNull Class<T> listenerClass);
 
     @NotNull
     <T extends IEventListener> T getListener(@NotNull IEvent event, @NotNull Class<? extends IEventListener> listenerClass);
-
-    @NotNull
-    <T extends IEventListener> T getListener(@NotNull IEntity entity, @NotNull EventType type);
 
     @NotNull
     <T extends IEventListener> T getListener(@NotNull IEntity entity, @NotNull EventType type, @NotNull Class<? extends IEventListener> listenerClass);

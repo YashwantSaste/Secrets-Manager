@@ -10,16 +10,10 @@ import org.jetbrains.annotations.Nullable;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.password.manager.database.DataRepository;
-import com.project.password.manager.encryption.AesGcmEncryptionService;
 import com.project.password.manager.encryption.IEncryptionService;
-import com.project.password.manager.event.EntityChangeDetector;
-import com.project.password.manager.event.EntityEventFactory;
-import com.project.password.manager.event.EntityEventSupport;
-import com.project.password.manager.event.EntitySnapshotter;
-import com.project.password.manager.event.EventDispatcher;
-import com.project.password.manager.event.EventLogger;
-import com.project.password.manager.event.IEntityEventSupport;
-import com.project.password.manager.event.listener.EventLoggingListener;
+import com.project.password.manager.event.EventType;
+import com.project.password.manager.event.listener.IPersistenceEventListener;
+import com.project.password.manager.event.listener.PersistenceListenerFactory;
 import com.project.password.manager.exceptions.EntityNotFoundException;
 import com.project.password.manager.exceptions.UnauthorizedSessionException;
 import com.project.password.manager.exceptions.UserNotFoundException;
@@ -40,39 +34,21 @@ public class VaultService {
 	@NotNull
 	private final ObjectMapper objectMapper;
 	@NotNull
-	private final IEntityEventSupport eventSupport;
-
-	public VaultService(@NotNull DataRepository<IUser, String> userRepository,
-			@NotNull DataRepository<IVault, String> vaultRepository) {
-		this(userRepository, vaultRepository, new AesGcmEncryptionService(new UserService(userRepository)),
-				ModelObjectMapperFactory.create(), new EntityEventSupport(
-						new EntitySnapshotter(ModelObjectMapperFactory.create()),
-						new EntityEventFactory(new EntityChangeDetector(ModelObjectMapperFactory.create())),
-						new EventDispatcher(List.of(new EventLoggingListener(new EventLogger())))));
-	}
+	private final PersistenceListenerFactory listenerFactory;
 
 	public VaultService(@NotNull DataRepository<IUser, String> userRepository,
 			@NotNull DataRepository<IVault, String> vaultRepository, @NotNull IEncryptionService encryptionService,
-			@NotNull ObjectMapper objectMapper) {
-		this(userRepository, vaultRepository, encryptionService, objectMapper, new EntityEventSupport(
-				new EntitySnapshotter(ModelObjectMapperFactory.create()),
-				new EntityEventFactory(new EntityChangeDetector(ModelObjectMapperFactory.create())),
-				new EventDispatcher(List.of(new EventLoggingListener(new EventLogger())))));
-	}
-
-	public VaultService(@NotNull DataRepository<IUser, String> userRepository,
-			@NotNull DataRepository<IVault, String> vaultRepository, @NotNull IEncryptionService encryptionService,
-			@NotNull ObjectMapper objectMapper, @NotNull IEntityEventSupport eventSupport) {
+			@NotNull ObjectMapper objectMapper, @NotNull PersistenceListenerFactory listenerFactory) {
 		this.userRepository = userRepository;
 		this.vaultRepository = vaultRepository;
 		this.encryptionService = encryptionService;
 		this.objectMapper = objectMapper;
-		this.eventSupport = eventSupport;
+		this.listenerFactory = listenerFactory;
 	}
 
 	@NotNull
 	public IVault createDefaultVault(@NotNull IUser user) {
-		IUser beforeSnapshot = eventSupport.snapshot(user);
+		IPersistenceEventListener<IUser> userListener = listenerFactory.create(user, EventType.UPDATE);
 		List<IVault> vaults = ensureVaultsInitialized(user);
 		if (!vaults.isEmpty() || hasDefaultVault(user)) {
 			throw new UnsupportedOperationException("A user can have only one default vault.");
@@ -80,8 +56,9 @@ public class VaultService {
 		IVault vault = createVault(user, vaults, "Default");
 		user.setDefaultVaultId(vault.getId());
 		persistUserIfPresent(user);
-		eventSupport.publishCreated(vault);
-		eventSupport.publishUpdated(beforeSnapshot, user);
+		IPersistenceEventListener<IVault> vaultListener = listenerFactory.create(vault, EventType.CREATE);
+		vaultListener.onEvent(vaultListener.createEvent());
+		userListener.onUpdate(user);
 		return vault;
 	}
 
@@ -93,14 +70,15 @@ public class VaultService {
 	@NotNull
 	public String createVaultForUser(@NotNull String userId, @NotNull String vaultName) {
 		IUser user = getUser(userId);
-		IUser beforeSnapshot = eventSupport.snapshot(user);
+		IPersistenceEventListener<IUser> userListener = listenerFactory.create(user, EventType.UPDATE);
 		IVault vault = createVault(user, ensureVaultsInitialized(user), vaultName);
 		if (!hasDefaultVault(user)) {
 			user.setDefaultVaultId(vault.getId());
 		}
 		userRepository.update(userId, user);
-		eventSupport.publishCreated(vault);
-		eventSupport.publishUpdated(beforeSnapshot, user);
+		IPersistenceEventListener<IVault> vaultListener = listenerFactory.create(vault, EventType.CREATE);
+		vaultListener.onEvent(vaultListener.createEvent());
+		userListener.onUpdate(user);
 		return vault.getId();
 	}
 

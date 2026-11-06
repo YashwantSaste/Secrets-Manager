@@ -12,6 +12,7 @@ import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.matcher.Matcher;
 import com.google.inject.matcher.Matchers;
+import com.google.inject.multibindings.ProvidesIntoSet;
 import com.project.password.manager.argon.Argon2Encoder;
 import com.project.password.manager.auth.token.JwtSessionTokenStrategy;
 import com.project.password.manager.auth.token.OAuth2SessionTokenStrategy;
@@ -71,6 +72,7 @@ import com.project.password.manager.cli.runtime.CommandHandlerInvoker;
 import com.project.password.manager.cli.runtime.CommandHandlerRegistry;
 import com.project.password.manager.cli.runtime.ConsoleCliOutput;
 import com.project.password.manager.configuration.AuthenticationType;
+import com.project.password.manager.configuration.IAppConfiguration.ApplicationEnvironment;
 import com.project.password.manager.configuration.IAuthenticationConfiguration;
 import com.project.password.manager.configuration.IConfiguration;
 import com.project.password.manager.configuration.IDatabaseConfiguration;
@@ -85,20 +87,12 @@ import com.project.password.manager.database.EntryDataRepository;
 import com.project.password.manager.database.EntryStorageKey;
 import com.project.password.manager.encryption.AesGcmEncryptionService;
 import com.project.password.manager.encryption.IEncryptionService;
-import com.project.password.manager.event.EntityChangeDetector;
-import com.project.password.manager.event.EntityEventFactory;
-import com.project.password.manager.event.EntityEventSupport;
-import com.project.password.manager.event.EntitySnapshotter;
-import com.project.password.manager.event.EventDispatcher;
 import com.project.password.manager.event.EventLogger;
-import com.project.password.manager.event.IEntityEventSupport;
-import com.project.password.manager.event.IEventPublisher;
 import com.project.password.manager.event.listener.EventLoggingListener;
+import com.project.password.manager.event.listener.IEventListenerProvider;
 import com.project.password.manager.event.listener.IEventListener;
-import com.project.password.manager.event.listener.IPersistenceEventListener;
-import com.project.password.manager.event.listener.IPersistenceListenerSubscriberManager;
-import com.project.password.manager.event.listener.PersistenceListener;
-import com.project.password.manager.event.listener.PersistenceListenerSubscriberManager;
+import com.project.password.manager.event.listener.EventListenerProvider;
+import com.project.password.manager.event.listener.PersistenceListenerFactory;
 import com.project.password.manager.logging.ITransactionLogger;
 import com.project.password.manager.logging.WorkspaceTransactionLogger;
 import com.project.password.manager.middleware.RequireAuthorization;
@@ -131,242 +125,238 @@ import com.project.password.manager.workspace.WorkspaceLocator;
 public class GuiceModule extends AbstractModule {
 
     @Override
-    protected void configure() {
-        IConfiguration configuration = Configuration.getInstance();
-        TokenAuthorizationInterceptor authorizationInterceptor = new TokenAuthorizationInterceptor();
-        bind(IConfiguration.class).toInstance(configuration);
-        bind(IWorkspace.class).to(Workspace.class).in(Singleton.class);
-        bind(IWorkspaceLocator.class).to(WorkspaceLocator.class).in(Singleton.class);
-        bind(IPersistenceEventListener.class).to(PersistenceListener.class);
-        bind(IPersistenceListenerSubscriberManager.class).to(PersistenceListenerSubscriberManager.class).in(Singleton.class);
-        bind(CliSession.class).in(Singleton.class);
-        bind(CliOutput.class).to(ConsoleCliOutput.class).in(Singleton.class);
-        requestInjection(authorizationInterceptor);
-        bindInterceptor(Matchers.any(), authorizationMethodMatcher(), authorizationInterceptor);
-        if (!configuration.databaseConfiguration().databaseEnabled()) {
-            bind(IUser.class).to(User.class);
-            bind(IVault.class).to(Vault.class);
-            bind(IMetadata.class).to(Metadata.class);
-            bind(IToken.class).to(Token.class);
-        } else {
-            switch (configuration.databaseConfiguration().type()) {
-                case IDatabaseConfiguration.DATABASE_TYPE_SQL: {
-                    bind(IUser.class).to(JpaUser.class);
-                    bind(IVault.class).to(JpaVault.class);
-                    bind(IToken.class).to(JpaToken.class);
-                    bind(IMetadata.class).to(Metadata.class);
-                    break;
-                }
-                case IDatabaseConfiguration.DATABASE_TYPE_NO_SQL: {
-                    bind(IUser.class).to(UserDocument.class);
-                    break;
-                }
-                default:
-                    throw new UnsupportedOperationException("Could not bind entities: Error: Unsupported Database Type");
-            }
-        }
+    protected final void configure() {
+	IConfiguration configuration = Configuration.getInstance();
+	TokenAuthorizationInterceptor authorizationInterceptor = new TokenAuthorizationInterceptor();
+	bind(IConfiguration.class).toInstance(configuration);
+	bind(IWorkspace.class).to(Workspace.class).in(Singleton.class);
+	bind(IWorkspaceLocator.class).to(WorkspaceLocator.class).in(Singleton.class);
+	bind(IEventListenerProvider.class).to(EventListenerProvider.class).in(Singleton.class);
+	bind(CliSession.class).in(Singleton.class);
+	bind(CliOutput.class).to(ConsoleCliOutput.class).in(Singleton.class);
+	requestInjection(authorizationInterceptor);
+	bindInterceptor(Matchers.any(), authorizationMethodMatcher(), authorizationInterceptor);
+	if (!configuration.databaseConfiguration().databaseEnabled()) {
+	    bind(IUser.class).to(User.class);
+	    bind(IVault.class).to(Vault.class);
+	    bind(IMetadata.class).to(Metadata.class);
+	    bind(IToken.class).to(Token.class);
+	} else {
+	    switch (configuration.databaseConfiguration().type()) {
+	    case IDatabaseConfiguration.DATABASE_TYPE_SQL: {
+		bind(IUser.class).to(JpaUser.class);
+		bind(IVault.class).to(JpaVault.class);
+		bind(IToken.class).to(JpaToken.class);
+		bind(IMetadata.class).to(Metadata.class);
+		break;
+	    }
+	    case IDatabaseConfiguration.DATABASE_TYPE_NO_SQL: {
+		bind(IUser.class).to(UserDocument.class);
+		break;
+	    }
+	    default:
+		throw new UnsupportedOperationException("Could not bind entities: Error: Unsupported Database Type");
+	    }
+	}
+	configureEnvironment(configuration.appConfiguration().environment());
+    }
 
+    /** Environment-specific extension point for bindings and overrides. */
+    protected void configureEnvironment(ApplicationEnvironment environment) {
+	// Shared production-ready bindings are defined above. Environment modules can
+	// extend this hook.
     }
 
     @NotNull
     private Matcher<Method> authorizationMethodMatcher() {
-        return new Matcher<Method>() {
-            @Override
-            public boolean matches(Method method) {
-                return !method.isSynthetic() && method.isAnnotationPresent(RequireAuthorization.class);
-            }
-        };
+	return new Matcher<Method>() {
+	    @Override
+	    public boolean matches(Method method) {
+		return !method.isSynthetic() && method.isAnnotationPresent(RequireAuthorization.class);
+	    }
+	};
     }
 
     @Provides
     @Singleton
     IOAuth2Configuration provideOAuth2Configuration() {
-        return new OAuth2Configuration(PropertiesReader.getInstance());
+	return new OAuth2Configuration(PropertiesReader.getInstance());
     }
 
     @Provides
     @Singleton
     Argon2Encoder provideArgon2Encoder(IConfiguration configuration) {
-        return new Argon2Encoder(configuration.argon2Configuration());
+	return new Argon2Encoder(configuration.argon2Configuration());
     }
 
     @Provides
     @Singleton
-    DataRepository<IUser, String> provideUserRepository(IConfiguration configuration) {
-        return new DataRepositoryFactory(configuration).getRepository(IUser.class, String.class);
+    DataRepository<IUser, String> provideUserRepository(IConfiguration configuration, IWorkspaceLocator locator) {
+	return new DataRepositoryFactory(configuration, locator).getRepository(IUser.class, String.class);
     }
 
     @Provides
     @Singleton
-    DataRepository<IToken, String> provideTokenRepository(IConfiguration configuration) {
-        return new DataRepositoryFactory(configuration).getRepository(IToken.class, String.class);
+    DataRepository<IToken, String> provideTokenRepository(IConfiguration configuration, IWorkspaceLocator locator) {
+	return new DataRepositoryFactory(configuration, locator).getRepository(IToken.class, String.class);
     }
 
     @Provides
     @Singleton
-    DataRepository<IVault, String> provideVaultRepository(@NotNull IConfiguration configuration) {
-        return new DataRepositoryFactory(configuration).getRepository(IVault.class, String.class);
+    DataRepository<IVault, String> provideVaultRepository(@NotNull IConfiguration configuration,
+	    IWorkspaceLocator locator) {
+	return new DataRepositoryFactory(configuration, locator).getRepository(IVault.class, String.class);
     }
 
     @Provides
     @Singleton
-    EntryDataRepository provideEntryRepository(IConfiguration configuration) {
-        return (EntryDataRepository) new DataRepositoryFactory(configuration).getRepository(EncryptedEntryRecord.class, EntryStorageKey.class);
+    EntryDataRepository provideEntryRepository(IConfiguration configuration, IWorkspaceLocator locator) {
+	return (EntryDataRepository) new DataRepositoryFactory(configuration, locator)
+		.getRepository(EncryptedEntryRecord.class, EntryStorageKey.class);
     }
 
     @Provides
     @Singleton
     ITransactionLogger provideTransactionLogger(IConfiguration configuration) {
-        return new WorkspaceTransactionLogger(configuration.appConfiguration(), Workspace.getInstance().getRoot());
+	return new WorkspaceTransactionLogger(configuration.appConfiguration(), Workspace.getInstance().getRoot());
     }
 
     @Provides
     @Singleton
-    UserService provideUserService(DataRepository<IUser, String> userRepository) {
-        return new UserService(userRepository);
+    UserService provideUserService(DataRepository<IUser, String> userRepository, TokenService tokenService,
+	    PersistenceListenerFactory listenerFactory) {
+	return new UserService(userRepository, tokenService, listenerFactory);
     }
 
     @Provides
     @Singleton
-    TokenService provideTokenService(IConfiguration configuration) {
-        return new TokenService(provideSessionTokenStrategyRegistry(configuration));
+    TokenService provideTokenService(SessionTokenStrategyRegistry strategyRegistry,
+	    DataRepository<IToken, String> tokenRepository) {
+	return new TokenService(strategyRegistry, tokenRepository);
     }
 
     @Provides
     @Singleton
     SessionTokenStrategyRegistry provideSessionTokenStrategyRegistry(IConfiguration configuration) {
-        List<SessionTokenStrategy> strategies = new ArrayList<>();
-        for (IAuthenticationConfiguration authenticationConfiguration : List.of(configuration.jwtConfiguration(),
-                configuration.oauth2Configuration())) {
-            SessionTokenStrategy strategy = createSessionTokenStrategy(authenticationConfiguration);
-            if (strategy != null) {
-                strategies.add(strategy);
-            }
-        }
-        return new SessionTokenStrategyRegistry(strategies);
+	List<SessionTokenStrategy> strategies = new ArrayList<>();
+	for (IAuthenticationConfiguration authenticationConfiguration : List.of(configuration.jwtConfiguration(),
+		configuration.oauth2Configuration())) {
+	    SessionTokenStrategy strategy = createSessionTokenStrategy(authenticationConfiguration);
+	    if (strategy != null) {
+		strategies.add(strategy);
+	    }
+	}
+	return new SessionTokenStrategyRegistry(strategies);
     }
 
     @Nullable
-    private SessionTokenStrategy createSessionTokenStrategy(@NotNull IAuthenticationConfiguration authenticationConfiguration) {
-        try {
-            switch (authenticationConfiguration.type()) {
-                case OAUTH2:
-                    return new OAuth2SessionTokenStrategy();
-                case JWT:
-                    return new JwtSessionTokenStrategy((IJwtConfiguration) authenticationConfiguration);
-                default:
-                    return null;
-            }
-        } catch (RuntimeException exception) {
-            if (authenticationConfiguration.type() == AuthenticationType.JWT) {
-                return null;
-            }
-            throw exception;
-        }
+    private SessionTokenStrategy createSessionTokenStrategy(
+	    @NotNull IAuthenticationConfiguration authenticationConfiguration) {
+	try {
+	    switch (authenticationConfiguration.type()) {
+	    case OAUTH2:
+		return new OAuth2SessionTokenStrategy();
+	    case JWT:
+		return new JwtSessionTokenStrategy((IJwtConfiguration) authenticationConfiguration);
+	    default:
+		return null;
+	    }
+	} catch (RuntimeException exception) {
+	    if (authenticationConfiguration.type() == AuthenticationType.JWT) {
+		return null;
+	    }
+	    throw exception;
+	}
     }
 
     @Provides
     @Singleton
     EventLogger provideEventLogger(ITransactionLogger transactionLogger) {
-        return new EventLogger(transactionLogger);
+	return new EventLogger(transactionLogger);
     }
 
-    @Provides
+    @ProvidesIntoSet
     @Singleton
     IEventListener provideEventLoggingListener(EventLogger eventLogger) {
-        return new EventLoggingListener(eventLogger);
+	return new EventLoggingListener(eventLogger);
     }
 
     @Provides
     @Singleton
-    IEventPublisher provideEventPublisher(IEventListener eventListener) {
-        return new EventDispatcher(List.of(eventListener));
-    }
-
-    @Provides
-    @Singleton
-    IEntityEventSupport provideEntityEventSupport(IEventPublisher eventPublisher) {
-        return new EntityEventSupport(new EntitySnapshotter(ModelObjectMapperFactory.create()),
-                new EntityEventFactory(new EntityChangeDetector(ModelObjectMapperFactory.create())), eventPublisher);
+    PersistenceListenerFactory providePersistenceListenerFactory(IEventListenerProvider listenerProvider) {
+	return new PersistenceListenerFactory(listenerProvider);
     }
 
     @Provides
     @Singleton
     IEncryptionService provideEncryptionService(UserService userService) {
-        return new AesGcmEncryptionService(userService);
+	return new AesGcmEncryptionService(userService);
     }
 
     @Provides
     @Singleton
-    VaultService provideVaultService(DataRepository<IUser, String> userRepository, DataRepository<IVault, String> vaultRepository, IEncryptionService encryptionService, IEntityEventSupport eventSupport) {
-        return new VaultService(userRepository, vaultRepository, encryptionService, ModelObjectMapperFactory.create(),
-                eventSupport);
+    VaultService provideVaultService(DataRepository<IUser, String> userRepository,
+	    DataRepository<IVault, String> vaultRepository, IEncryptionService encryptionService,
+	    PersistenceListenerFactory listenerFactory) {
+	return new VaultService(userRepository, vaultRepository, encryptionService, ModelObjectMapperFactory.create(),
+		listenerFactory);
     }
 
     @Provides
     @Singleton
-    EntryService provideEntryService(EntryDataRepository entryRepository, DataRepository<IVault, String> vaultRepository, IEncryptionService encryptionService, IEntityEventSupport eventSupport) {
-        return new EntryService(entryRepository, vaultRepository, encryptionService, eventSupport);
+    EntryService provideEntryService(EntryDataRepository entryRepository,
+	    DataRepository<IVault, String> vaultRepository, IEncryptionService encryptionService,
+	    PersistenceListenerFactory listenerFactory) {
+	return new EntryService(entryRepository, vaultRepository, encryptionService, listenerFactory);
     }
 
     @Provides
     @Singleton
-    VaultService provideVaultService(DataRepository<IUser, String> userRepository, DataRepository<IVault, String> vaultRepository, IEncryptionService encryptionService) {
-        return new VaultService(userRepository, vaultRepository, encryptionService, ModelObjectMapperFactory.create());
+    AuthService provideAuthService(TokenService tokenService, UserService userService, Argon2Encoder argon2Encoder,
+	    VaultService vaultService) {
+	return new AuthService(tokenService, userService, argon2Encoder, vaultService);
     }
 
     @Provides
     @Singleton
-    EntryService provideEntryService(EntryDataRepository entryRepository, DataRepository<IVault, String> vaultRepository, IEncryptionService encryptionService) {
-        return new EntryService(entryRepository, vaultRepository, encryptionService);
-    }
-
-    @Provides
-    @Singleton
-    AuthService provideAuthService(TokenService tokenService, UserService userService, Argon2Encoder argon2Encoder, VaultService vaultService) {
-        return new AuthService(tokenService, userService, argon2Encoder, vaultService);
-    }
-
-    @Provides
-    @Singleton
-    OAuth2LoginService provideOAuth2LoginService(IOAuth2Configuration oauth2Configuration, AuthService authService, TokenService tokenService) {
-        return new OAuth2LoginService(oauth2Configuration, authService, tokenService);
+    OAuth2LoginService provideOAuth2LoginService(IOAuth2Configuration oauth2Configuration, AuthService authService,
+	    TokenService tokenService) {
+	return new OAuth2LoginService(oauth2Configuration, authService, tokenService);
     }
 
     @Provides
     @Singleton
     CommandHandlerInvoker provideCommandHandlerInvoker() {
-        return new CommandHandlerInvoker();
+	return new CommandHandlerInvoker();
     }
 
     @Provides
     @Singleton
     CommandHandlerRegistry provideCommandHandlerRegistry() {
-        return new CommandHandlerRegistry()
-                .register(ConfigListCommand.class, ConfigListCommandHandler.class)
-                .register(ConfigGetCommand.class, ConfigGetCommandHandler.class)
-                .register(ConfigSetCommand.class, ConfigSetCommandHandler.class)
-                .register(LoginCommand.class, LoginCommandHandler.class)
-                .register(OAuth2LoginCommand.class, OAuth2LoginCommandHandler.class)
-                .register(SignupCommand.class, SignupCommandHandler.class)
-                .register(LogoutCommand.class, LogoutCommandHandler.class)
-                .register(WhoAmICommand.class, WhoAmICommandHandler.class)
-                .register(PingCommand.class, PingCommandHandler.class)
-                .register(UserRoleListCommand.class, UserRoleListCommandHandler.class)
-                .register(UserRoleGrantCommand.class, UserRoleGrantCommandHandler.class)
-                .register(UserRoleRevokeCommand.class, UserRoleRevokeCommandHandler.class)
-                .register(ThemeListCommand.class, ThemeListCommandHandler.class)
-                .register(ThemePreviewCommand.class, ThemePreviewCommandHandler.class)
-                .register(ThemeSetCommand.class, ThemeSetCommandHandler.class)
-                .register(VaultListCommand.class, VaultListCommandHandler.class)
-                .register(VaultCreateCommand.class, VaultCreateCommandHandler.class)
-                .register(VaultDefaultCommand.class, VaultDefaultCommandHandler.class)
-                .register(EntryListCommand.class, EntryListCommandHandler.class)
-                .register(EntryGetCommand.class, EntryGetCommandHandler.class)
-                .register(EntryCreateCommand.class, EntryCreateCommandHandler.class)
-                .register(EntryUpdateCommand.class, EntryUpdateCommandHandler.class)
-                .register(EntryDeleteCommand.class, EntryDeleteCommandHandler.class)
-                .register(EntrySearchCommand.class, EntrySearchCommandHandler.class);
+	return new CommandHandlerRegistry().register(ConfigListCommand.class, ConfigListCommandHandler.class)
+		.register(ConfigGetCommand.class, ConfigGetCommandHandler.class)
+		.register(ConfigSetCommand.class, ConfigSetCommandHandler.class)
+		.register(LoginCommand.class, LoginCommandHandler.class)
+		.register(OAuth2LoginCommand.class, OAuth2LoginCommandHandler.class)
+		.register(SignupCommand.class, SignupCommandHandler.class)
+		.register(LogoutCommand.class, LogoutCommandHandler.class)
+		.register(WhoAmICommand.class, WhoAmICommandHandler.class)
+		.register(PingCommand.class, PingCommandHandler.class)
+		.register(UserRoleListCommand.class, UserRoleListCommandHandler.class)
+		.register(UserRoleGrantCommand.class, UserRoleGrantCommandHandler.class)
+		.register(UserRoleRevokeCommand.class, UserRoleRevokeCommandHandler.class)
+		.register(ThemeListCommand.class, ThemeListCommandHandler.class)
+		.register(ThemePreviewCommand.class, ThemePreviewCommandHandler.class)
+		.register(ThemeSetCommand.class, ThemeSetCommandHandler.class)
+		.register(VaultListCommand.class, VaultListCommandHandler.class)
+		.register(VaultCreateCommand.class, VaultCreateCommandHandler.class)
+		.register(VaultDefaultCommand.class, VaultDefaultCommandHandler.class)
+		.register(EntryListCommand.class, EntryListCommandHandler.class)
+		.register(EntryGetCommand.class, EntryGetCommandHandler.class)
+		.register(EntryCreateCommand.class, EntryCreateCommandHandler.class)
+		.register(EntryUpdateCommand.class, EntryUpdateCommandHandler.class)
+		.register(EntryDeleteCommand.class, EntryDeleteCommandHandler.class)
+		.register(EntrySearchCommand.class, EntrySearchCommandHandler.class);
     }
 
 }

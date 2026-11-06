@@ -4,13 +4,17 @@ import java.io.File;
 
 import org.jetbrains.annotations.NotNull;
 
+import com.google.inject.Inject;
 import com.project.password.manager.exceptions.ApplicationErrorException;
-import com.project.password.manager.guice.GuicePlatform;
 
 public class WorkspaceLocator implements IWorkspaceLocator {
 
-    public WorkspaceLocator() {
-        if (!getWorkspace().workspaceExists()) {
+    private final IWorkspace workspace;
+
+    @Inject
+    public WorkspaceLocator(@NotNull IWorkspace workspace) {
+        this.workspace = workspace;
+        if (!workspace.workspaceExists()) {
             throw new ApplicationErrorException("Workspace does not exist");
         }
     }
@@ -18,7 +22,7 @@ public class WorkspaceLocator implements IWorkspaceLocator {
     @Override
     @NotNull
     public IWorkspace getWorkspace() {
-        return GuicePlatform.getInstance(IWorkspace.class);
+	return workspace;
     }
 
     @Override
