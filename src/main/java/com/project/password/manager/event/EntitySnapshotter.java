@@ -7,16 +7,15 @@ import com.project.password.manager.model.IEntity;
 
 public class EntitySnapshotter {
 
-	@NotNull
-	private final ObjectMapper objectMapper;
+    @NotNull
+    private final ObjectMapper objectMapper;
 
-	public EntitySnapshotter(@NotNull ObjectMapper objectMapper) {
-		this.objectMapper = objectMapper;
-	}
+    public EntitySnapshotter(@NotNull ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
-	@NotNull
-	@SuppressWarnings("unchecked")
-	public <T extends IEntity> T snapshot(@NotNull T entity) {
-		return (T) objectMapper.convertValue(entity, entity.getClass());
-	}
+    @NotNull
+    public <T extends IEntity> T snapshot(@NotNull T entity) {
+        return (T) objectMapper.convertValue(entity, entity.getClass());
+    }
 }

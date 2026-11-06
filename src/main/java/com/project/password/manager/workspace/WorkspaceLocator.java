@@ -1,6 +1,3 @@
-/*
- * Copyright 2026 Polarion AG
- */
 package com.project.password.manager.workspace;
 
 import java.io.File;
@@ -46,6 +43,12 @@ public class WorkspaceLocator implements IWorkspaceLocator {
     @NotNull
     public File getEntriesWorkspaceLocation() {
         return new File(getWorkspaceRoot(), ENTRIES_WORKSPACE_FOLDER);
+    }
+
+    @Override
+    @NotNull
+    public File getLogsWorkspaceLocation() {
+        return new File(getWorkspaceRoot(), LOGS_WORKSPACE_FOLDER);
     }
 
 }

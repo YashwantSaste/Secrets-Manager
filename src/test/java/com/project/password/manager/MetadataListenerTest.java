@@ -64,6 +64,13 @@ public class MetadataListenerTest extends TestCase {
                     // TODO Auto-generated method stub
                     throw new UnsupportedOperationException();
                 }
+
+                @Override
+                @NotNull
+                public File getLogsWorkspaceLocation() {
+                    // TODO Auto-generated method stub
+                    throw new UnsupportedOperationException();
+                }
             };
             UserRepository repository = new UserRepository(locator, logger);
             User user = new User("user-1", "alice", "verifier", "salt", "vault-1", new ArrayList<>(),

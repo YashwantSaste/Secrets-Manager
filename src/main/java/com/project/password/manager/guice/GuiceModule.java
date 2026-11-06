@@ -95,6 +95,10 @@ import com.project.password.manager.event.IEntityEventSupport;
 import com.project.password.manager.event.IEventPublisher;
 import com.project.password.manager.event.listener.EventLoggingListener;
 import com.project.password.manager.event.listener.IEventListener;
+import com.project.password.manager.event.listener.IPersistenceEventListener;
+import com.project.password.manager.event.listener.IPersistenceListenerSubscriberManager;
+import com.project.password.manager.event.listener.PersistenceListener;
+import com.project.password.manager.event.listener.PersistenceListenerSubscriberManager;
 import com.project.password.manager.logging.ITransactionLogger;
 import com.project.password.manager.logging.WorkspaceTransactionLogger;
 import com.project.password.manager.middleware.RequireAuthorization;
@@ -133,6 +137,8 @@ public class GuiceModule extends AbstractModule {
         bind(IConfiguration.class).toInstance(configuration);
         bind(IWorkspace.class).to(Workspace.class).in(Singleton.class);
         bind(IWorkspaceLocator.class).to(WorkspaceLocator.class).in(Singleton.class);
+        bind(IPersistenceEventListener.class).to(PersistenceListener.class);
+        bind(IPersistenceListenerSubscriberManager.class).to(PersistenceListenerSubscriberManager.class).in(Singleton.class);
         bind(CliSession.class).in(Singleton.class);
         bind(CliOutput.class).to(ConsoleCliOutput.class).in(Singleton.class);
         requestInjection(authorizationInterceptor);
@@ -198,7 +204,7 @@ public class GuiceModule extends AbstractModule {
 
     @Provides
     @Singleton
-    DataRepository<IVault, String> provideVaultRepository(IConfiguration configuration) {
+    DataRepository<IVault, String> provideVaultRepository(@NotNull IConfiguration configuration) {
         return new DataRepositoryFactory(configuration).getRepository(IVault.class, String.class);
     }
 
@@ -211,14 +217,13 @@ public class GuiceModule extends AbstractModule {
     @Provides
     @Singleton
     ITransactionLogger provideTransactionLogger(IConfiguration configuration) {
-        return new WorkspaceTransactionLogger(configuration.appConfiguration(),
-                com.project.password.manager.configuration.application.Workspace.getInstance().getRoot());
+        return new WorkspaceTransactionLogger(configuration.appConfiguration(), Workspace.getInstance().getRoot());
     }
 
     @Provides
     @Singleton
-    UserService provideUserService(DataRepository<IUser, String> userRepository, TokenService tokenService) {
-        return new UserService(userRepository, tokenService);
+    UserService provideUserService(DataRepository<IUser, String> userRepository) {
+        return new UserService(userRepository);
     }
 
     @Provides
@@ -283,12 +288,6 @@ public class GuiceModule extends AbstractModule {
     IEntityEventSupport provideEntityEventSupport(IEventPublisher eventPublisher) {
         return new EntityEventSupport(new EntitySnapshotter(ModelObjectMapperFactory.create()),
                 new EntityEventFactory(new EntityChangeDetector(ModelObjectMapperFactory.create())), eventPublisher);
-    }
-
-    @Provides
-    @Singleton
-    UserService provideUserService(DataRepository<IUser, String> userRepository, TokenService tokenService, IEntityEventSupport eventSupport) {
-        return new UserService(userRepository, tokenService, eventSupport);
     }
 
     @Provides

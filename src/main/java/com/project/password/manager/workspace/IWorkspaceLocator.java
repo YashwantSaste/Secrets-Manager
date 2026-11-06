@@ -1,13 +1,8 @@
-/*
- * Copyright 2026 Polarion AG
- */
 package com.project.password.manager.workspace;
 
 import java.io.File;
 
 import org.jetbrains.annotations.NotNull;
-
-import com.google.inject.Inject;
 
 public interface IWorkspaceLocator {
 
@@ -21,7 +16,9 @@ public interface IWorkspaceLocator {
     String ENTRIES_WORKSPACE_FOLDER = "entries";
 
     @NotNull
-    @Inject
+    String LOGS_WORKSPACE_FOLDER = "logs";
+
+    @NotNull
     IWorkspace getWorkspace();
 
     @NotNull
@@ -35,4 +32,7 @@ public interface IWorkspaceLocator {
 
     @NotNull
     File getEntriesWorkspaceLocation();
+
+    @NotNull
+    File getLogsWorkspaceLocation();
 }
