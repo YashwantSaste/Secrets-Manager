@@ -1,4 +1,4 @@
-# Password Manager CLI
+# Secrets Manager CLI
 
 This project is a Java-based interactive password manager CLI. It supports user signup and login, JWT-backed CLI sessions, user and team vault management, encrypted entry storage, configuration inspection, and a command architecture built with Picocli, JLine, and Guice.
 

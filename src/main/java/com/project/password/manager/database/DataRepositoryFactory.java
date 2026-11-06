@@ -1,13 +1,10 @@
 package com.project.password.manager.database;
 
-import java.io.File;
-
 import org.hibernate.SessionFactory;
 import jakarta.validation.constraints.NotNull;
 
 import com.project.password.manager.configuration.IConfiguration;
 import com.project.password.manager.configuration.IDatabaseConfiguration;
-import com.project.password.manager.configuration.application.Workspace;
 import com.project.password.manager.database.file.storage.CustomRoleRepository;
 import com.project.password.manager.database.file.storage.FileEntryRepository;
 import com.project.password.manager.database.file.storage.TeamRepository;
@@ -28,110 +25,98 @@ import com.project.password.manager.model.IToken;
 import com.project.password.manager.model.IUser;
 import com.project.password.manager.model.IUserGroup;
 import com.project.password.manager.model.IVault;
-import com.project.password.manager.model.database.sql.JpaEncryptedEntryRecord;
 import com.project.password.manager.model.database.sql.JpaToken;
 import com.project.password.manager.model.database.sql.JpaUser;
 import com.project.password.manager.model.database.sql.JpaVault;
 import com.project.password.manager.model.entry.EncryptedEntryRecord;
 import com.project.password.manager.util.Logger;
+import com.project.password.manager.workspace.IWorkspaceLocator;
+import com.project.password.manager.workspace.Workspace;
 
 public class DataRepositoryFactory {
 
-	private static final Logger log = Logger.getLogger(DataRepositoryFactory.class);
-	@NotNull
-	private final IDatabaseConfiguration databaseConfiguration;
-	@NotNull
-	private final ITransactionLogger transactionLogger;
+    private static final Logger log = Logger.getLogger(DataRepositoryFactory.class);
+    private final IDatabaseConfiguration databaseConfiguration;
+    private final ITransactionLogger transactionLogger;
+    private final IWorkspaceLocator locator;
 
-	public DataRepositoryFactory(@NotNull IConfiguration configuration) {
-		databaseConfiguration = configuration.databaseConfiguration();
-		transactionLogger = new WorkspaceTransactionLogger(configuration.appConfiguration(),
-				Workspace.getInstance().getRoot());
-	}
+    public DataRepositoryFactory(@NotNull IConfiguration configuration, @NotNull IWorkspaceLocator locator) {
+        this.databaseConfiguration = configuration.databaseConfiguration();
+        this.transactionLogger = new WorkspaceTransactionLogger(configuration.appConfiguration(),
+                Workspace.getInstance().getRoot());
+        this.locator = locator;
+    }
 
-	@NotNull
-	public <T extends IEntity, Id> DataRepository<T, Id> getRepository(@NotNull Class<T> entityClass,
-			@NotNull Class<Id> idClass) {
-		File workspace = Workspace.getInstance().getRoot();
-		if (entityClass.equals(ITeam.class)) {
-			@SuppressWarnings("unchecked")
-			DataRepository<T, Id> repo = (DataRepository<T, Id>) new TeamRepository(workspace, transactionLogger);
-			return repo;
-		}
-		if (databaseConfiguration.databaseEnabled()
-				&& IDatabaseConfiguration.DATABASE_TYPE_SQL.equalsIgnoreCase(databaseConfiguration.type())) {
-			SessionFactory factory = HibernateBootStrap.init(databaseConfiguration, new HibernateEntityProvider());
-			return new HibernateRepository<>(factory, resolveSqlEntityClass(entityClass), transactionLogger);
-		}
-		log.warn("Database is not enabled hence using local file system as storage");
-		if (entityClass.equals(IUser.class)) {
-			@SuppressWarnings("unchecked")
-			DataRepository<T, Id> repo = (DataRepository<T, Id>) new UserRepository(workspace, transactionLogger);
-			return repo;
-		}
-		if (entityClass.equals(IToken.class)) {
-			@SuppressWarnings("unchecked")
-			DataRepository<T, Id> repo = (DataRepository<T, Id>) new TokenRepository(workspace, transactionLogger);
-			return repo;
-		}
-		if (entityClass.equals(IVault.class)) {
-			@SuppressWarnings("unchecked")
-			DataRepository<T, Id> repo = (DataRepository<T, Id>) new VaultRepository(workspace, transactionLogger);
-			return repo;
-		}
-		if (entityClass.equals(EncryptedEntryRecord.class)) {
-			@SuppressWarnings("unchecked")
-			DataRepository<T, Id> repo = (DataRepository<T, Id>) getEntryRepository();
-			return repo;
-		}
-		if (entityClass.equals(ICustomRole.class)) {
-			@SuppressWarnings("unchecked")
-			DataRepository<T, Id> repo = (DataRepository<T, Id>) new CustomRoleRepository(workspace, transactionLogger);
-			return repo;
-		}
-		if (entityClass.equals(IUserGroup.class)) {
-			@SuppressWarnings("unchecked")
-			DataRepository<T, Id> repo = (DataRepository<T, Id>) new UserGroupRepository(workspace, transactionLogger);
-			return repo;
-		}
-		throw new IllegalArgumentException("No repository available for entity: " + entityClass.getName());
-	}
+    @NotNull
+    public <T extends IEntity, Id> DataRepository<T, Id> getRepository(@NotNull Class<T> entityClass,
+            @NotNull Class<Id> idClass) {
+        if (entityClass.equals(EncryptedEntryRecord.class)) {
+            return castRepository(createEntryRepository());
+        }
+        if (entityClass.equals(ITeam.class)) {
+            return castRepository(new TeamRepository(locator, transactionLogger));
+        }
+        if (entityClass.equals(ICustomRole.class)) {
+            return castRepository(new CustomRoleRepository(locator, transactionLogger));
+        }
+        if (entityClass.equals(IUserGroup.class)) {
+            return castRepository(new UserGroupRepository(locator, transactionLogger));
+        }
+        if (databaseConfiguration.databaseEnabled()
+                && IDatabaseConfiguration.DATABASE_TYPE_SQL.equalsIgnoreCase(databaseConfiguration.type())) {
+            SessionFactory factory = HibernateBootStrap.init(databaseConfiguration, new HibernateEntityProvider());
+            return new HibernateRepository<>(factory, resolveSqlEntityClass(entityClass), transactionLogger);
+        }
+        log.warn("Database is not enabled hence using local file system as storage");
+        if (entityClass.equals(IUser.class)) {
+            return castRepository(new UserRepository(locator, transactionLogger));
+        }
+        if (entityClass.equals(IToken.class)) {
+            return castRepository(new TokenRepository(locator, transactionLogger));
+        }
+        if (entityClass.equals(IVault.class)) {
+            return castRepository(new VaultRepository(locator, transactionLogger));
+        }
+        throw new IllegalArgumentException("No repository available for entity: " + entityClass.getName());
+    }
 
-	@NotNull
-	public EntryDataRepository getEntryRepository() {
-		return createEntryRepository();
-	}
+    @SuppressWarnings("unchecked")
+    private <T extends IEntity, Id> DataRepository<T, Id> castRepository(DataRepository<?, ?> repository) {
+        return (DataRepository<T, Id>) repository;
+    }
 
-	@NotNull
-	private EntryDataRepository createEntryRepository() {
-		if (databaseConfiguration.databaseEnabled()) {
-			if (IDatabaseConfiguration.DATABASE_TYPE_SQL.equalsIgnoreCase(databaseConfiguration.type())) {
-				SessionFactory factory = HibernateBootStrap.init(databaseConfiguration, new HibernateEntityProvider());
-				return new HibernateEntryRepository(factory, transactionLogger);
-			}
-			if (IDatabaseConfiguration.DATABASE_TYPE_NO_SQL.equalsIgnoreCase(databaseConfiguration.type())) {
-				throw new UnsupportedOperationException("NoSQL entry repository is not implemented yet");
-			}
-		}
-		log.warn("Database is not enabled hence using local file system as storage");
-		return new FileEntryRepository(Workspace.getInstance().getRoot(), transactionLogger);
-	}
+    @NotNull
+    public EntryDataRepository getEntryRepository() {
+        return createEntryRepository();
+    }
 
-	@NotNull
-	@SuppressWarnings("unchecked")
-	private <T extends IEntity> Class<T> resolveSqlEntityClass(@NotNull Class<T> entityClass) {
-		if (entityClass.equals(IUser.class)) {
-			return (Class<T>) JpaUser.class;
-		}
-		if (entityClass.equals(IToken.class)) {
-			return (Class<T>) JpaToken.class;
-		}
-		if (entityClass.equals(IVault.class)) {
-			return (Class<T>) JpaVault.class;
-		}
-		if (entityClass.equals(EncryptedEntryRecord.class)) {
-			return (Class<T>) JpaEncryptedEntryRecord.class;
-		}
-		return entityClass;
-	}
+    @NotNull
+    private EntryDataRepository createEntryRepository() {
+        if (databaseConfiguration.databaseEnabled()) {
+            if (IDatabaseConfiguration.DATABASE_TYPE_SQL.equalsIgnoreCase(databaseConfiguration.type())) {
+                SessionFactory factory = HibernateBootStrap.init(databaseConfiguration, new HibernateEntityProvider());
+                return new HibernateEntryRepository(factory, transactionLogger);
+            }
+            if (IDatabaseConfiguration.DATABASE_TYPE_NO_SQL.equalsIgnoreCase(databaseConfiguration.type())) {
+                throw new UnsupportedOperationException("NoSQL entry repository is not implemented yet");
+            }
+        }
+        log.warn("Database is not enabled hence using local file system as storage");
+        return new FileEntryRepository(locator, transactionLogger);
+    }
+
+    @SuppressWarnings("unchecked")
+    @NotNull
+    private <T extends IEntity> Class<T> resolveSqlEntityClass(@NotNull Class<T> entityClass) {
+        if (entityClass.equals(IUser.class)) {
+            return (Class<T>) JpaUser.class;
+        }
+        if (entityClass.equals(IToken.class)) {
+            return (Class<T>) JpaToken.class;
+        }
+        if (entityClass.equals(IVault.class)) {
+            return (Class<T>) JpaVault.class;
+        }
+        return entityClass;
+    }
 }

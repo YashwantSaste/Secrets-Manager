@@ -1,31 +1,51 @@
 package com.project.password.manager.guice;
 
+import java.util.Objects;
+
+
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.project.password.manager.configuration.IAppConfiguration.ApplicationEnvironment;
+import com.project.password.manager.configuration.application.Configuration;
 
 import jakarta.validation.constraints.NotNull;
 
 public class GuicePlatform {
 
-	private GuicePlatform() {
-	}
+    private GuicePlatform() {
+    }
 
-	private static class HOLDER {
-		private static final Injector INJECTOR = Guice.createInjector(new GuiceModule());
-	}
+    private static final class HOLDER {
+	private static final Injector INJECTOR = Guice
+		.createInjector(moduleFor(Configuration.getInstance().appConfiguration().environment()));
+    }
 
-	@NotNull
-	public static Injector getInjector() {
-		return HOLDER.INJECTOR;
-	}
+    @NotNull
+    private static GuiceModule moduleFor(@NotNull ApplicationEnvironment environment) {
+	return switch (environment) {
+	case DEV -> new DevGuiceModule();
+	case TEST -> new TestGuiceModule();
+	case PROD -> new ProdGuiceModule();
+	};
+    }
 
-	@NotNull
-	public static <T> T getInstance(@NotNull Class<T> type) {
-		return getInjector().getInstance(type);
-	}
+    @NotNull
+    private static Injector injector() {
+	return HOLDER.INJECTOR;
+    }
 
-	public static void injectMembers(@NotNull Object object) {
-		getInjector().injectMembers(object);
-	}
+    @NotNull
+    public static Injector getInjector() {
+	return injector();
+    }
+
+    @NotNull
+    public static <T> T getInstance(@NotNull Class<T> type) {
+	return Objects.requireNonNull(injector().getInstance(type));
+    }
+
+    public static void injectMembers(@NotNull Object object) {
+	injector().injectMembers(object);
+    }
 
 }

@@ -14,7 +14,6 @@ import com.project.password.manager.configuration.AuthenticationType;
 import com.project.password.manager.configuration.ICacheConfiguration;
 import com.project.password.manager.configuration.application.Configuration;
 import com.project.password.manager.database.DataRepository;
-import com.project.password.manager.database.DataRepositoryFactory;
 import com.project.password.manager.guice.Platform;
 import com.project.password.manager.model.IToken;
 import com.project.password.manager.model.IUser;
@@ -33,10 +32,10 @@ public class TokenService {
 	@NotNull
 	private final SessionTokenStrategyRegistry sessionTokenStrategyRegistry;
 
-	public TokenService(@NotNull SessionTokenStrategyRegistry sessionTokenStrategyRegistry) {
+	public TokenService(@NotNull SessionTokenStrategyRegistry sessionTokenStrategyRegistry,
+			@NotNull DataRepository<IToken, String> tokenRepo) {
 		this.sessionTokenStrategyRegistry = sessionTokenStrategyRegistry;
-		this.tokenRepo = new DataRepositoryFactory(Configuration.getInstance())
-				.getRepository(IToken.class, String.class);
+		this.tokenRepo = tokenRepo;
 	}
 
 	@NotNull

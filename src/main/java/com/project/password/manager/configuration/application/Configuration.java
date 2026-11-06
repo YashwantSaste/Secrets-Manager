@@ -16,65 +16,62 @@ import com.project.password.manager.configuration.ITeamConfiguration;
 
 public class Configuration implements IConfiguration {
 
-	@NotNull
-	private final PropertiesReader propertiesReader = PropertiesReader.getInstance();
+    @NotNull
+    private final PropertiesReader propertiesReader = PropertiesReader.getInstance();
 
-	@NotNull
-	private static Configuration configuration;
+    private Configuration() {
+    }
 
-	public static Configuration getInstance()
-	{
-		if (configuration == null) {
-			configuration = new Configuration();
-		}
-		return configuration;
-	}
+    private static class Holder {
+        private static final Configuration INSTANCE = new Configuration();
+    }
 
-	private Configuration() {
-		//
-	}
+    @NotNull
+    public static Configuration getInstance() {
+        return Holder.INSTANCE;
+    }
 
-	@Override
-	@NotNull
-	public IAppConfiguration appConfiguration() {
-		return new ApplicationConfiguration(propertiesReader);
-	}
+    @Override
+    @NotNull
+    public IAppConfiguration appConfiguration() {
+        return new ApplicationConfiguration(propertiesReader);
+    }
 
-	@Override
-	@NotNull
-	public ICLIConfiguration cliConfiguration() {
-		return new CLIConfiguration(propertiesReader);
-	}
+    @Override
+    @NotNull
+    public ICLIConfiguration cliConfiguration() {
+        return new CLIConfiguration(propertiesReader);
+    }
 
-	@Override
-	@NotNull
-	public IDatabaseConfiguration databaseConfiguration() {
-		return new DatabaseConfiguration(propertiesReader);
-	}
+    @Override
+    @NotNull
+    public IDatabaseConfiguration databaseConfiguration() {
+        return new DatabaseConfiguration(propertiesReader);
+    }
 
-	@Override
-	@NotNull
-	public IArgon2Configuration argon2Configuration() {
-		return new Argon2Configuration(propertiesReader);
-	}
+    @Override
+    @NotNull
+    public IArgon2Configuration argon2Configuration() {
+        return new Argon2Configuration(propertiesReader);
+    }
 
-	@Override
-	@NotNull
-	public IJwtConfiguration jwtConfiguration() {
-		return new JwtConfiguration(propertiesReader);
-	}
+    @Override
+    @NotNull
+    public IJwtConfiguration jwtConfiguration() {
+        return new JwtConfiguration(propertiesReader);
+    }
 
-	@Override
-	@NotNull
-	public IAESConfiguration aesConfiguration() {
-		return new AESConfiguration(propertiesReader);
-	}
+    @Override
+    @NotNull
+    public IAESConfiguration aesConfiguration() {
+        return new AESConfiguration(propertiesReader);
+    }
 
-	@Override
-	@NotNull
-	public ISaltKeyConfiguration saltKeyConfiguration() {
-		return new SaltKeyConfigurations(propertiesReader);
-	}
+    @Override
+    @NotNull
+    public ISaltKeyConfiguration saltKeyConfiguration() {
+        return new SaltKeyConfigurations(propertiesReader);
+    }
 
 	@Override
 	@NotNull

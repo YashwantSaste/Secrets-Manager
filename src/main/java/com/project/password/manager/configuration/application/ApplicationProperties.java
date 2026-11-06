@@ -10,6 +10,7 @@ public class ApplicationProperties {
 	/** Application Configurations **/
 	public static final String PROPERTY_APP_NAME = "app.name";
 	public static final String PROPERTY_APP_VERSION = "app.version";
+	public static final String PROPERTY_APP_ENV = "app.env";
 	public static final String PROPERTY_APP_CLI_THEME = "app.cli.theme";
 	public static final String PROPERTY_APP_CLI_ENABLED = "app.cli.enabled";
 	public static final String PROPERTY_APP_CLI_DISPLAY_PROMPT = "app.cli.prompt";
@@ -68,7 +69,7 @@ public class ApplicationProperties {
 	public static final String PROPERTY_APP_CACHE_MAXIMUM_SIZE = "app.cache.maximum.size";
 	public static final String PROPERTY_APP_CACHE_EXPIRY_DURATION = "app.cache.expiry.duration";
 
-	private static final List<String> SUPPORTED_KEYS = List.of(PROPERTY_APP_NAME, PROPERTY_APP_VERSION,
+	private static final List<String> SUPPORTED_KEYS = List.of(PROPERTY_APP_NAME, PROPERTY_APP_VERSION, PROPERTY_APP_ENV,
 			PROPERTY_APP_CLI_THEME, PROPERTY_APP_CLI_ENABLED, PROPERTY_APP_CLI_DISPLAY_PROMPT,
 			PROPERTY_APP_TRANSACTION_LOG_ENABLED, PROPERTY_APP_TRANSACTION_LOG_PATH,
 			PROPERTY_APP_TRANSACTION_LOG_INCLUDE_DATABASE, PROPERTY_DATABASE_ENABLED, PROPERTY_DATABASE_TYPE,

@@ -15,7 +15,7 @@ import java.util.Base64;
 
 import jakarta.validation.constraints.NotNull;
 
-import com.project.password.manager.configuration.application.Workspace;
+import com.project.password.manager.workspace.Workspace;
 
 public class KeyLoader {
 
