@@ -3,6 +3,7 @@ package com.project.password.manager.model.database.sql;
 import org.jetbrains.annotations.NotNull;
 
 import com.project.password.manager.model.IEntity;
+import com.project.password.manager.model.IEntry;
 import com.project.password.manager.model.entry.EncryptedEntryRecord;
 
 import jakarta.persistence.Column;
@@ -54,5 +55,11 @@ public class JpaEncryptedEntryRecord implements IEntity {
 		record.setCreatedAtEpochMs(createdAtEpochMs);
 		record.setUpdatedAtEpochMs(updatedAtEpochMs);
 		return record;
+	}
+
+	@Override
+	@NotNull
+	public Class<?> entityClassType() {
+		return IEntry.class;
 	}
 }

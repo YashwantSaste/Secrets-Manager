@@ -3,6 +3,13 @@ package com.project.password.manager.model;
 import org.jetbrains.annotations.NotNull;
 
 public interface IVault extends HasMetadata {
+
+	@Override
+	@NotNull
+	default Class<?> entityClassType() {
+		return IVault.class;
+	}
+
 	@NotNull
 	String getId();
 

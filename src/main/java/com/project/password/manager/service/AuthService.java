@@ -1,6 +1,5 @@
 package com.project.password.manager.service;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -10,12 +9,11 @@ import org.jetbrains.annotations.NotNull;
 
 import com.project.password.manager.argon.Argon2Encoder;
 import com.project.password.manager.auth.token.SessionTokenRequest;
-import com.project.password.manager.configuration.application.Workspace;
 import com.project.password.manager.guice.PlatformEntityProvider;
 import com.project.password.manager.model.IUser;
-import com.project.password.manager.model.IVault;
 import com.project.password.manager.model.UserRole;
 import com.project.password.manager.util.KeyGenerator;
+import com.project.password.manager.workspace.Workspace;
 
 public class AuthService {
 
@@ -96,9 +94,8 @@ public class AuthService {
 
 	@NotNull
 	private List<UserRole> determineInitialRoles() {
-		File usersDirectory = new File(Workspace.getInstance().getRoot(), "users");
-		String[] existingUsers = usersDirectory.list();
-		if (!usersDirectory.exists() || existingUsers == null || existingUsers.length == 0) {
+		List<IUser> user = userService.getUsers();
+		if (user.isEmpty() || user == null) {
 			return List.of(UserRole.ADMIN, UserRole.USER);
 		}
 		return List.of(UserRole.USER);

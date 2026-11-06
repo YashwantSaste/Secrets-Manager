@@ -119,6 +119,12 @@ public class Workspace {
 		changed |= putIfAbsent(properties, ApplicationProperties.PROPERTY_APP_CLI_THEME, "warm-retro");
 		changed |= putIfAbsent(properties, ApplicationProperties.PROPERTY_APP_CLI_ENABLED, String.valueOf(true));
 		changed |= putIfAbsent(properties, ApplicationProperties.PROPERTY_APP_CLI_DISPLAY_PROMPT, "password-manager-> ");
+		changed |= putIfAbsent(properties, ApplicationProperties.PROPERTY_APP_TRANSACTION_LOG_ENABLED,
+				String.valueOf(true));
+		changed |= putIfAbsent(properties, ApplicationProperties.PROPERTY_APP_TRANSACTION_LOG_PATH,
+				"logs/transactions.log");
+		changed |= putIfAbsent(properties, ApplicationProperties.PROPERTY_APP_TRANSACTION_LOG_INCLUDE_DATABASE,
+				String.valueOf(true));
 
 		changed |= putIfAbsent(properties, ApplicationProperties.PROPERTY_DATABASE_ENABLED, "false");
 		changed |= putIfAbsent(properties, ApplicationProperties.PROPERTY_DATABASE_TYPE, "sql");

@@ -2,7 +2,13 @@ package com.project.password.manager.model;
 
 import org.jetbrains.annotations.NotNull;
 
-public interface IEntry {
+public interface IEntry extends IEntity {
+
+	@Override
+	@NotNull
+	default Class<?> entityClassType() {
+		return IEntry.class;
+	}
 
 	@NotNull
 	String getId();

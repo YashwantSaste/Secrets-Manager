@@ -4,6 +4,12 @@ import org.jetbrains.annotations.NotNull;
 
 public interface IToken extends IEntity{
 
+	@Override
+	@NotNull
+	default Class<?> entityClassType() {
+		return IToken.class;
+	}
+
 	@NotNull
 	String getToken();
 

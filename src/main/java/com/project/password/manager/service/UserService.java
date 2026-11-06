@@ -7,122 +7,126 @@ import java.util.Set;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
+import com.google.inject.Inject;
 import com.project.password.manager.database.DataRepository;
+import com.project.password.manager.event.EventType;
+import com.project.password.manager.event.listener.IPersistenceEventListener;
+import com.project.password.manager.event.listener.PersistenceListenerFactory;
 import com.project.password.manager.model.IUser;
 import com.project.password.manager.model.UserRole;
 import com.project.password.manager.util.Logger;
 
 public class UserService {
 
-	private static final Logger log = Logger.getLogger(UserService.class);
+    private static final Logger log = Logger.getLogger(UserService.class);
+    @NotNull
+    private final DataRepository<IUser, String> userRepository;
+    private final TokenService tokenService;
+    @NotNull
+    private final PersistenceListenerFactory listenerFactory;
 
-	@NotNull
-	private final DataRepository<IUser, String> userRepository;
-	@Nullable
-	private final TokenService tokenService;
+    @Inject
+    public UserService(@NotNull DataRepository<IUser, String> userRepository,
+            @NotNull TokenService tokenService, @NotNull PersistenceListenerFactory listenerFactory) {
+        this.userRepository = userRepository;
+        this.tokenService = tokenService;
+        this.listenerFactory = listenerFactory;
+    }
 
-	public UserService(@NotNull DataRepository<IUser, String> userRepository) {
-		this(userRepository, null);
-	}
+    @Nullable
+    public IUser getUser(@NotNull String id) {
+        return userRepository.findById(id);
+    }
 
-	public UserService(@NotNull DataRepository<IUser, String> userRepository, @Nullable TokenService tokenService) {
-		this.userRepository = userRepository;
-		this.tokenService = tokenService;
-	}
+    @NotNull
+    public List<IUser> getUsers() {
+        return List.copyOf(userRepository.findAll());
+    }
 
-	@Nullable
-	public IUser getUser(@NotNull String id) {
-		return userRepository.findById(id);
-	}
+    public void saveUser(@NotNull IUser user) {
+        userRepository.save(user);
+        IPersistenceEventListener<IUser> listener = listenerFactory.create(user, EventType.CREATE);
+        listener.onEvent(listener.createEvent());
+    }
 
-	@NotNull
-	public List<IUser> getUsers() {
-		return List.copyOf(userRepository.findAll());
-	}
+    public boolean grantRole(@NotNull String actorUserId, @NotNull String targetUserId, @NotNull UserRole role) {
+        IUser actor = requireUser(actorUserId);
+        IUser target = requireUser(targetUserId);
+        if (actor.getId().equals(target.getId()) && role == UserRole.ADMIN && !hasRole(target, UserRole.ADMIN)) {
+            throw new IllegalArgumentException("Users cannot grant themselves the ADMIN role.");
+        }
+        List<UserRole> updatedRoles = normalizedRoles(target);
+        if (updatedRoles.contains(role)) {
+            return false;
+        }
+        updatedRoles.add(role);
+        persistRoles(target, updatedRoles);
+        log.info("Role granted by user [" + actor.getId() + "] to user [" + target.getId() + "] for role [" + role + "]");
+        return true;
+    }
 
-	public void saveUser(@NotNull IUser user) {
-		userRepository.save(user);
-	}
+    public boolean revokeRole(@NotNull String actorUserId, @NotNull String targetUserId, @NotNull UserRole role) {
+        IUser actor = requireUser(actorUserId);
+        IUser target = requireUser(targetUserId);
+        List<UserRole> updatedRoles = normalizedRoles(target);
+        if (!updatedRoles.contains(role)) {
+            return false;
+        }
+        if (role == UserRole.ADMIN && isLastAdmin(target)) {
+            throw new IllegalArgumentException("Cannot remove ADMIN from the last remaining admin user.");
+        }
+        while (updatedRoles.remove(role)) {
+            // Remove duplicate assignments if older data introduced them.
+        }
+        persistRoles(target, updatedRoles);
+        log.info("Role revoked by user [" + actor.getId() + "] from user [" + target.getId() + "] for role [" + role + "]");
+        return true;
+    }
 
-	public boolean grantRole(@NotNull String actorUserId, @NotNull String targetUserId, @NotNull UserRole role) {
-		IUser actor = requireUser(actorUserId);
-		IUser target = requireUser(targetUserId);
-		if (actor.getId().equals(target.getId()) && role == UserRole.ADMIN && !hasRole(target, UserRole.ADMIN)) {
-			throw new IllegalArgumentException("Users cannot grant themselves the ADMIN role.");
-		}
-		List<UserRole> updatedRoles = normalizedRoles(target);
-		if (updatedRoles.contains(role)) {
-			return false;
-		}
-		updatedRoles.add(role);
-		persistRoles(target, updatedRoles);
-		log.info("Role granted by user [" + actor.getId() + "] to user [" + target.getId() + "] for role [" + role + "]");
-		return true;
-	}
+    private void persistRoles(@NotNull IUser user, @NotNull List<UserRole> roles) {
+        IPersistenceEventListener<IUser> listener = listenerFactory.create(user, EventType.UPDATE);
+        user.setRoles(normalizeRoles(roles));
+        userRepository.update(user.getId(), user);
+        listener.onUpdate(user);
+        tokenService.revokeToken(user);
+    }
 
-	public boolean revokeRole(@NotNull String actorUserId, @NotNull String targetUserId, @NotNull UserRole role) {
-		IUser actor = requireUser(actorUserId);
-		IUser target = requireUser(targetUserId);
-		List<UserRole> updatedRoles = normalizedRoles(target);
-		if (!updatedRoles.contains(role)) {
-			return false;
-		}
-		if (role == UserRole.ADMIN && isLastAdmin(target)) {
-			throw new IllegalArgumentException("Cannot remove ADMIN from the last remaining admin user.");
-		}
-		while (updatedRoles.remove(role)) {
-			// Remove duplicate assignments if older data introduced them.
-		}
-		persistRoles(target, updatedRoles);
-		log.info("Role revoked by user [" + actor.getId() + "] from user [" + target.getId() + "] for role [" + role + "]");
-		return true;
-	}
+    @NotNull
+    public IUser requireUser(@NotNull String userId) {
+        IUser user = userRepository.findById(userId);
+        if (user == null) {
+            throw new IllegalArgumentException("User not found: " + userId);
+        }
+        return user;
+    }
 
-	private void persistRoles(@NotNull IUser user, @NotNull List<UserRole> roles) {
-		user.setRoles(normalizeRoles(roles));
-		userRepository.update(user.getId(), user);
-		if (tokenService != null) {
-			tokenService.revokeToken(user);
-		}
-	}
+    private boolean isLastAdmin(@NotNull IUser user) {
+        if (!hasRole(user, UserRole.ADMIN)) {
+            return false;
+        }
+        long adminCount = getUsers().stream().filter(existingUser -> hasRole(existingUser, UserRole.ADMIN)).count();
+        return adminCount <= 1;
+    }
 
-	@NotNull
-	public IUser requireUser(@NotNull String userId) {
-		IUser user = userRepository.findById(userId);
-		if (user == null) {
-			throw new IllegalArgumentException("User not found: " + userId);
-		}
-		return user;
-	}
+    private boolean hasRole(@NotNull IUser user, @NotNull UserRole role) {
+        List<UserRole> roles = user.getRoles();
+        if (roles.isEmpty()) {
+            return role == UserRole.USER;
+        }
+        return roles.contains(role);
+    }
 
-	private boolean isLastAdmin(@NotNull IUser user) {
-		if (!hasRole(user, UserRole.ADMIN)) {
-			return false;
-		}
-		long adminCount = getUsers().stream().filter(existingUser -> hasRole(existingUser, UserRole.ADMIN)).count();
-		return adminCount <= 1;
-	}
+    @NotNull
+    private List<UserRole> normalizedRoles(@NotNull IUser user) {
+        return new ArrayList<>(normalizeRoles(user.getRoles()));
+    }
 
-	private boolean hasRole(@NotNull IUser user, @NotNull UserRole role) {
-		List<UserRole> roles = user.getRoles();
-		if (roles.isEmpty()) {
-			return role == UserRole.USER;
-		}
-		return roles.contains(role);
-	}
-
-	@NotNull
-	private List<UserRole> normalizedRoles(@NotNull IUser user) {
-		return new ArrayList<>(normalizeRoles(user.getRoles()));
-	}
-
-	@NotNull
-	private List<UserRole> normalizeRoles(@NotNull List<UserRole> roles) {
-		Set<UserRole> normalizedRoles = new LinkedHashSet<>(roles);
-		if (normalizedRoles.isEmpty()) {
-			normalizedRoles.add(UserRole.USER);
-		}
-		return new ArrayList<>(normalizedRoles);
-	}
+    @NotNull
+    private List<UserRole> normalizeRoles(@NotNull List<UserRole> roles) {
+        Set<UserRole> normalizedRoles = new LinkedHashSet<>(roles);
+        if (normalizedRoles.isEmpty()) {
+            normalizedRoles.add(UserRole.USER);
+        }
+        return new ArrayList<>(normalizedRoles);
+    }
 }

@@ -4,35 +4,41 @@ import java.io.File;
 
 import org.jetbrains.annotations.NotNull;
 
+import com.google.inject.Inject;
+import com.project.password.manager.logging.ITransactionLogger;
 import com.project.password.manager.model.database.file.storage.Token;
+import com.project.password.manager.workspace.IWorkspaceLocator;
 
-public class TokenRepository extends FileStorageRepository<Token, String>{
+public class TokenRepository extends FileStorageRepository<Token, String> {
 
-	private static final String USERS_WORKSPACE_FOLDER = "users";
+    @Inject
+    public TokenRepository(@NotNull IWorkspaceLocator workspaceLocator, @NotNull ITransactionLogger transactionLogger) {
+	super(workspaceLocator, transactionLogger);
+    }
 
-	public TokenRepository(@NotNull File workspace) {
-		super(new File(workspace, USERS_WORKSPACE_FOLDER));
-	}
+    /**
+     * Resolves the user's workspace directory where the token is stored. The
+     * {@code id} represents the user ID whose token is being stored.
+     *
+     * @param id the user ID associated with the token
+     * @return the user's workspace directory
+     */
+    @Override
+    @NotNull
+    protected File resolveEntityDirectoryInFileSystem(@NotNull String id) {
+	return new File(workspaceLocator.getUserWorkspaceLocation(), id);
+    }
 
-	/*As we are storing the token inside the user folder in the workspace so the
-	 * {@code id} here would represent the user id under
-	 *  which we are storing the token*/
-	@Override
-	@NotNull
-	protected File resolveEntityDirectoryInFileSystem(@NotNull String id) {
-		return new File(workspace, id);
-	}
+    @Override
+    @NotNull
+    protected Class<Token> getEntityClass() {
+	return Token.class;
+    }
 
-	@Override
-	@NotNull
-	protected Class<Token> getEntityClass() {
-		return Token.class;
-	}
-
-	@Override
-	@NotNull
-	protected String getEntityFileName() {
-		return "token.json";
-	}
+    @Override
+    @NotNull
+    protected String getEntityFileName() {
+	return "token.json";
+    }
 
 }

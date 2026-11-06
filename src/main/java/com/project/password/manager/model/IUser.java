@@ -5,6 +5,13 @@ import java.util.List;
 import org.jetbrains.annotations.NotNull;
 
 public interface IUser extends HasMetadata {
+
+	@Override
+	@NotNull
+	default Class<?> entityClassType() {
+		return IUser.class;
+	}
+
 	@NotNull
 	String getId();
 
