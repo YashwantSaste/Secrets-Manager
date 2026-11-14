@@ -1,6 +1,7 @@
 package com.project.password.manager.workspace;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -20,6 +21,12 @@ public interface IWorkspaceLocator {
 
     @NotNull
     IWorkspace getWorkspace();
+
+    @NotNull
+    File getLocationOfFolder(@NotNull String folderName);
+
+    @NotNull
+    File getLocationOfFolderIfExists(@NotNull String folderName) throws FileNotFoundException;
 
     @NotNull
     File getWorkspaceRoot();

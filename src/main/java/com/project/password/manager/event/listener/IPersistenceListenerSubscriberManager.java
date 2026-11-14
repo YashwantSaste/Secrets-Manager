@@ -1,6 +1,3 @@
-/*
- * Copyright 2026 Polarion AG
- */
 package com.project.password.manager.event.listener;
 
 import java.util.Collection;
