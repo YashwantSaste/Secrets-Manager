@@ -1,6 +1,7 @@
 package com.project.password.manager;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
@@ -68,6 +69,20 @@ public class MetadataListenerTest extends TestCase {
                 @Override
                 @NotNull
                 public File getLogsWorkspaceLocation() {
+                    // TODO Auto-generated method stub
+                    throw new UnsupportedOperationException();
+                }
+
+                @Override
+                @NotNull
+                public File getLocationOfFolder(@NotNull String folderName) {
+                    // TODO Auto-generated method stub
+                    throw new UnsupportedOperationException();
+                }
+
+                @Override
+                @NotNull
+                public File getLocationOfFolderIfExists(@NotNull String folderName) throws FileNotFoundException {
                     // TODO Auto-generated method stub
                     throw new UnsupportedOperationException();
                 }
